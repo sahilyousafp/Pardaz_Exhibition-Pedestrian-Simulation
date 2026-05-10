@@ -97,6 +97,7 @@ export default function AnnotationCanvas({
   // POI modals
   const [poiModal, setPoiModal] = useState(null)       // new POI: {x, y}
   const [poiEditModal, setPoiEditModal] = useState(null) // edit existing: poi object
+  const [hoveredPoiId, setHoveredPoiId] = useState(null) // POI hover feedback in POI tool mode
 
   const computeSize = useCallback(() => {
     if (!containerRef.current || !imageNativeW || !imageNativeH) return
@@ -225,7 +226,23 @@ export default function AnnotationCanvas({
 
   const handleMouseMove = (e) => {
     const { x, y } = e.target.getStage().getPointerPosition()
-    setMousePos(toImg(x, y))
+    const [ix, iy] = toImg(x, y)
+    setMousePos([ix, iy])
+    
+    // POI hover detection in POI tool mode
+    if (activeTool === 'poi') {
+      let hovered = null
+      for (const poi of annotation.pois) {
+        const d = pxDist([ix, iy], poi.position)
+        if (d <= 18 / zoomLevel) {
+          hovered = poi.id
+          break
+        }
+      }
+      setHoveredPoiId(hovered)
+    } else {
+      setHoveredPoiId(null)
+    }
   }
 
   const handleClick = (e) => {
@@ -314,6 +331,17 @@ export default function AnnotationCanvas({
       return
     }
     if (activeTool === 'poi') {
+      // Check if click hits an existing POI — if so, open edit modal
+      for (const poi of annotation.pois) {
+        const d = pxDist([ix, iy], poi.position)
+        if (d <= 18 / zoomLevel) {
+          setPoiEditModal(poi)
+          onItemSelect?.('pois', poi.id)
+          return
+        }
+      }
+      
+      // No existing POI hit — open creation modal
       // Check if click lands inside a space — pre-fill from that space
       const hitSpace = annotation.spaces.find(s => pointInPolygon([ix, iy], s.polygon))
       if (hitSpace) {
@@ -396,7 +424,7 @@ export default function AnnotationCanvas({
         y={stagePos.y}
         scaleX={zoomLevel}
         scaleY={zoomLevel}
-        style={{ cursor: activeTool !== 'select' ? 'crosshair' : 'default' }}
+        style={{ cursor: activeTool === 'poi' && hoveredPoiId ? 'pointer' : activeTool !== 'select' ? 'crosshair' : 'default' }}
       >
         <Layer>
           {/* Floor plan */}
@@ -500,12 +528,13 @@ export default function AnnotationCanvas({
           {annotation.pois.map(p => {
             const [sx, sy] = toStage(...p.position)
             const sel = selectedItem?.type === 'pois' && selectedItem?.id === p.id
+            const hovered = hoveredPoiId === p.id && activeTool === 'poi'
             return (
               <Group key={p.id}>
-                <Circle x={sx} y={sy} radius={sel ? 16 : 14} fill="transparent" />
-                <Circle x={sx} y={sy} radius={9} fill={COLORS.poi} opacity={0.9} />
-                <Circle x={sx} y={sy} radius={sel ? 16 : 14} stroke={sel ? '#fff' : COLORS.poi}
-                  strokeWidth={sel ? 2 : 1.5} opacity={sel ? 0.8 : 0.3} />
+                <Circle x={sx} y={sy} radius={sel ? 16 : hovered ? 15 : 14} fill="transparent" />
+                <Circle x={sx} y={sy} radius={9} fill={COLORS.poi} opacity={hovered ? 1 : 0.9} />
+                <Circle x={sx} y={sy} radius={sel ? 16 : hovered ? 15 : 14} stroke={sel ? '#fff' : COLORS.poi}
+                  strokeWidth={sel ? 2 : hovered ? 2 : 1.5} opacity={sel ? 0.8 : hovered ? 0.6 : 0.3} />
                 <Text x={sx + 13} y={sy - 14} text={p.label || 'POI'} fontSize={9} fill={COLORS.poi} fontStyle="bold" />
                 <Text x={sx + 13} y={sy - 3} text={`${p.dwell_time}s`} fontSize={8} fill="#fcd34d" />
               </Group>
@@ -743,7 +772,7 @@ export default function AnnotationCanvas({
 
           {/* Hint text */}
           <span className="text-xs text-slate-400 select-none">
-            <HintText tool={activeTool} spaceShape={spaceShape} points={currentPoints.length} rulerStart={rulerStart} standStart={standStart} lineStart={lineStart} shapeStart={shapeStart} />
+            <HintText tool={activeTool} spaceShape={spaceShape} points={currentPoints.length} rulerStart={rulerStart} standStart={standStart} lineStart={lineStart} shapeStart={shapeStart} hoveredPoiId={hoveredPoiId} />
           </span>
 
           {/* Divider */}
@@ -818,7 +847,7 @@ function DoorTicks({ x1, y1, x2, y2, color }) {
   )
 }
 
-function HintText({ tool, spaceShape, points, rulerStart, standStart, lineStart, shapeStart }) {
+function HintText({ tool, spaceShape, points, rulerStart, standStart, lineStart, shapeStart, hoveredPoiId }) {
   const spaceMsg = () => {
     if (spaceShape === 'rectangle') return shapeStart ? 'Click to set the opposite corner' : 'Click to set the first corner'
     if (spaceShape === 'circle')    return shapeStart ? 'Click to set the radius' : 'Click to set the centre'
@@ -830,7 +859,7 @@ function HintText({ tool, spaceShape, points, rulerStart, standStart, lineStart,
     scale: rulerStart ? 'Click to set the end of the 1 m reference line' : 'Click to set the start of the 1 m reference line',
     exit:  lineStart ? 'Click to set the other end of the exit doorway' : 'Click one end of the exit doorway',
     entry: lineStart ? 'Click to set the other end of the entry doorway' : 'Click one end of the entry doorway',
-    poi:   'Click to place a Point of Interest',
+    poi:   hoveredPoiId ? 'Click to edit POI' : 'Click to place a Point of Interest',
     path:  points === 0 ? 'Click to start drawing the agent route' : `${points} pts — double-click to finish`,
   }
   return msgs[tool] ?? 'Select a tool'
