@@ -5,6 +5,22 @@ ADJACENCY_THRESHOLD_PX = 15  # pixels — spaces within this distance are consid
 
 
 def build_space_graph(spaces: list[dict], pois: list[dict] = None, mpp: float = 0.05) -> nx.Graph:
+    """
+    Build a graph of spaces and their adjacencies for centrality analysis.
+    
+    POI CONTRIBUTION TO FOOT TRAFFIC:
+    - When POIs are placed in a space with dwell_time > 0, agents pause there
+    - Dwell time is accumulated per space: sum of all POI dwell_times in that space
+    - This contributes to the "foot_traffic" weight for heatmap rendering
+    - Higher foot_traffic means agents spend more time in that space
+    
+    Args:
+        spaces: List of space polygons [{id, polygon, label}, ...]
+        pois: List of POIs [{position, dwell_time}, ...]
+        mpp: Meters per pixel for coordinate conversion
+    
+    Returns: NetworkX Graph with nodes (spaces) and edges (adjacencies)
+    """
     G = nx.Graph()
 
     polys: dict[str, Polygon] = {}
@@ -37,6 +53,25 @@ def build_space_graph(spaces: list[dict], pois: list[dict] = None, mpp: float = 
 
 
 def compute_centrality(G: nx.Graph, annotation: dict = None) -> dict[str, dict]:
+    """
+    Compute centrality metrics for spaces in the graph.
+    
+    HYBRID WEIGHTING STRATEGY (for realistic heatmap):
+    - betweenness (60%): Measures how central a space is for routing between zones
+    - foot_traffic (40%): Reflects dwell time from POI activity
+    
+    RESULT INTERPRETATION:
+    - betweenness: 0-1, higher = more central in spatial topology
+    - foot_traffic: 0-1, reflects POI dwell contribution (e.g., 0.4 = 40% of total dwell time)
+    - degree: Number of adjacent spaces
+    - eigenvector: Similar to betweenness, weight by neighbors' importance
+    
+    HIGH CENTRALITY occurs when:
+    1. Space is a hub connecting many zones AND/OR
+    2. Space contains POIs with long dwell times
+    
+    This makes the heatmap reflect both agent flow (paths) and dwell time (POI activity).
+    """
     if len(G.nodes) == 0:
         return {}
 

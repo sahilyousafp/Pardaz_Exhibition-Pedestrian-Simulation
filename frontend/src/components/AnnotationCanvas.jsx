@@ -851,16 +851,16 @@ function HintText({ tool, spaceShape, points, rulerStart, standStart, lineStart,
   const spaceMsg = () => {
     if (spaceShape === 'rectangle') return shapeStart ? 'Click to set the opposite corner' : 'Click to set the first corner'
     if (spaceShape === 'circle')    return shapeStart ? 'Click to set the radius' : 'Click to set the centre'
-    return points === 0 ? 'Click to draw a space polygon' : `${points} pt${points > 1 ? 's' : ''} — double-click to close`
+    return points === 0 ? 'Draw walkable areas where agents navigate freely' : `${points} pt${points > 1 ? 's' : ''} — double-click to close`
   }
   const msgs = {
     space: spaceMsg(),
     stand: standStart ? 'Click to set the opposite corner' : 'Click to set the first corner of the stand',
     scale: rulerStart ? 'Click to set the end of the 1 m reference line' : 'Click to set the start of the 1 m reference line',
-    exit:  lineStart ? 'Click to set the other end of the exit doorway' : 'Click one end of the exit doorway',
-    entry: lineStart ? 'Click to set the other end of the entry doorway' : 'Click one end of the entry doorway',
-    poi:   hoveredPoiId ? 'Click to edit POI' : 'Click to place a Point of Interest',
-    path:  points === 0 ? 'Click to start drawing the agent route' : `${points} pts — double-click to finish`,
+    exit:  lineStart ? 'Click to set the other end (agents exit here)' : 'Click one end of the exit doorway',
+    entry: lineStart ? 'Click to set the other end (agents spawn here)' : 'Click one end of the entry doorway',
+    poi:   hoveredPoiId ? '✏️ Click to edit POI (dwell time)' : '📍 Click to place exhibition stand/activity point',
+    path:  points === 0 ? 'Draw guided visitor routes (overrides free navigation)' : `${points} pts — double-click to finish`,
   }
   return msgs[tool] ?? 'Select a tool'
 }

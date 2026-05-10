@@ -137,9 +137,9 @@ async def simulate(req: SimulationRequest):
         if not _space_union.intersects(line):
             warnings.append(f"Exit {i+1} line is outside your space polygons — draw it across a doorway inside a space")
 
-    # Run JuPedSim simulation
+    # Run JuPedSim simulation (pass image dimensions for coordinate transformation)
     try:
-        sim_result = run_simulation(annotation)
+        sim_result = run_simulation(annotation, image_height=req.image_height)
     except Exception as e:
         raise HTTPException(500, f"Simulation error: {e}")
 

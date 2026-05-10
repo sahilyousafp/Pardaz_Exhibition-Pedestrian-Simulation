@@ -79,12 +79,32 @@ def _clamp_to_interior(point_m: tuple, walkable) -> tuple:
     return (near.x, near.y)
 
 
-def run_simulation(annotation: dict) -> dict:
+def run_simulation(annotation: dict, image_height: int = None) -> dict:
     """
     Run a JuPedSim pedestrian simulation from annotation data.
-    Supports multiple entry points and multiple exit polygons.
-
-    Returns dict with: positions, trajectories, total_steps, total_agents
+    
+    HYBRID NAVIGATION APPROACH:
+    1. ZONES (Spaces) — Free-form walkable areas where agents navigate via collision avoidance
+    2. POIs — Activity points where agents dwell (pause) for a specified duration
+    3. PATHS (Waypoints) — Optional explicit routes that OVERRIDE free navigation
+    
+    WAYPOINT PRIORITY:
+    - If explicit paths exist: agents follow path waypoints in sequence (ignores free navigation)
+    - If no paths: agents route via POI dwell sequence (if POIs exist) or directly to exit
+    - POI dwell is triggered when agent reaches within ARRIVAL_RADIUS (0.8m) of POI
+    - Agents switch to next POI after dwell_time elapses
+    
+    COORDINATE SYSTEM:
+    - Annotation coordinates are in PIXELS (top-left origin)
+    - JuPedSim coordinates are in METRES (arbitrary origin)
+    - Conversion: meters_to_pixels = position_m / scale_mpp
+    - Y-axis is inverted for heatmap alignment: y_px = image_height - (y_m / mpp)
+    
+    Args:
+        annotation: Dict with spaces, pois, entries, exits, paths, scale_mpp, num_people
+        image_height: Height of floor plan image (for Y-axis inversion in heatmap)
+    
+    Returns: Dict with positions, trajectories, total_steps, total_agents
     """
     mpp: float = annotation["scale_mpp"]
     spaces = annotation["spaces"]
@@ -298,7 +318,11 @@ def run_simulation(annotation: dict) -> dict:
         # Collect positions every step for dense heatmap coverage
         for agent in sim.agents():
             x_m, y_m = agent.position
-            x_px, y_px = x_m / mpp, y_m / mpp
+            x_px = x_m / mpp
+            y_px = y_m / mpp
+            # Invert Y-axis if image_height provided to match canvas coordinates
+            if image_height is not None:
+                y_px = image_height - y_px
             positions.append((x_px, y_px))
             if step % 3 == 0:   # trajectory sampled every 3 steps (lighter payload)
                 trajectories.append((x_px, y_px, current_time))

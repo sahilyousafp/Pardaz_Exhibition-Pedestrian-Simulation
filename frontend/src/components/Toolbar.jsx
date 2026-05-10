@@ -11,6 +11,7 @@ const TOOLS = [
       </svg>
     ),
     hint: 'Click two points to define 1 m — sets the scale automatically.',
+    description: 'Calibrate the image scale so all measurements are accurate.',
   },
   {
     id: 'stand',
@@ -23,6 +24,7 @@ const TOOLS = [
       </svg>
     ),
     hint: 'Click & drag to draw an exhibition stand rectangle.',
+    description: 'Mark exhibition booth footprints (optional visual annotation).',
   },
   {
     id: 'space',
@@ -35,6 +37,7 @@ const TOOLS = [
       </svg>
     ),
     hint: 'Click to draw a space polygon. Double-click to close.',
+    description: 'Define walkable areas (corridors, galleries, restrooms). Agents navigate freely within spaces with collision avoidance.',
   },
   {
     id: 'entry',
@@ -47,6 +50,7 @@ const TOOLS = [
       </svg>
     ),
     hint: 'Click two points to draw an entry doorway line. Multiple entries allowed.',
+    description: 'Mark where agents spawn into the space. Distribute agents along the entry line length.',
   },
   {
     id: 'exit',
@@ -59,6 +63,7 @@ const TOOLS = [
       </svg>
     ),
     hint: 'Click two points to draw an exit doorway line. Multiple exits allowed.',
+    description: 'Mark where agents leave the space. Required for simulation completion.',
   },
   {
     id: 'poi',
@@ -72,6 +77,7 @@ const TOOLS = [
       </svg>
     ),
     hint: 'Click to place a Point of Interest.',
+    description: 'Mark exhibition stands/activity points where agents pause (e.g., 15 sec per booth). Agents auto-route to POIs. Dwell time creates heatmap intensity.',
   },
   {
     id: 'path',
@@ -86,6 +92,7 @@ const TOOLS = [
       </svg>
     ),
     hint: 'Click to draw the agent route. Double-click to finish. Overrides automatic routing.',
+    description: 'Define guided visitor routes (tours, one-way flows). Optional—forces agents to follow waypoint sequence instead of free navigation through spaces.',
   },
 ]
 
@@ -242,6 +249,33 @@ export function RightPanel({
         onEdit={onItemEdit}
         onSetAsPoi={onSetAsPoi}
       />
+
+      {/* Design Guide */}
+      <div className="card text-xs space-y-2.5 bg-blue-500/5 border border-blue-500/20">
+        <details className="cursor-pointer group">
+          <summary className="label mb-1.5 cursor-pointer flex items-center gap-2 hover:text-blue-400 transition-colors">
+            <span>📋 Design Guide</span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="group-open:rotate-180 transition-transform">
+              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </summary>
+          <div className="space-y-2 text-slate-400 pt-1.5 border-t border-blue-500/20">
+            <div>
+              <p className="font-medium text-blue-300 mb-0.5">1️⃣ Draw Zones</p>
+              <p className="text-[10px] leading-relaxed">Mark walkable areas (corridors, galleries). Agents navigate freely within zones with collision avoidance.</p>
+            </div>
+            <div>
+              <p className="font-medium text-yellow-300 mb-0.5">2️⃣ Place POIs (optional)</p>
+              <p className="text-[10px] leading-relaxed">Mark exhibition stands. Set dwell time (how long agents stay). POIs create heatmap intensity.</p>
+            </div>
+            <div>
+              <p className="font-medium text-cyan-300 mb-0.5">3️⃣ Add Paths (optional)</p>
+              <p className="text-[10px] leading-relaxed">For guided visitor routes (tours). Forces agents to follow waypoints instead of free navigation.</p>
+            </div>
+            <p className="text-[9px] text-slate-500 pt-1 border-t border-slate-700">💡 Most simulations use Zones + POIs. Paths are for directed flows.</p>
+          </div>
+        </details>
+      </div>
 
       <div className="mt-auto space-y-2">
         <button onClick={onClear} className="btn-ghost w-full text-center">Clear all</button>
