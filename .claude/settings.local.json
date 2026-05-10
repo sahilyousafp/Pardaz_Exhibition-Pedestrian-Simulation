@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"D:\\\\Personal\\\\Pardaz\" -Recurse -Force)",
+      "Bash(Select-Object FullName, PSIsContainer)",
+      "Bash(Sort-Object FullName)",
+      "WebSearch",
+      "Bash(python -m venv venv)",
+      "Bash(venv\\\\Scripts\\\\pip install *)",
+      "Bash(\"venv/Scripts/python.exe\" -c \"import jupedsim as jps; help\\(jps.Simulation.__init__\\)\")",
+      "Bash(venv/Scripts/python.exe -c ' *)",
+      "Bash(\"C:\\\\Program Files\\\\nodejs\\\\npm.cmd\" create vite@latest frontend -- --template react)",
+      "Bash(\"C:\\\\Program Files\\\\nodejs\\\\npm.cmd\" init -y)",
+      "Bash(\"venv/Scripts/python.exe\" -c \"from main import EntryAnnotation, ExitAnnotation; print\\('Entry:', list\\(EntryAnnotation.model_fields.keys\\(\\)\\)\\); print\\('Exit:', list\\(ExitAnnotation.model_fields.keys\\(\\)\\)\\)\")"
+    ]
+  }
+}
