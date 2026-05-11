@@ -4,7 +4,6 @@ import CentralityPanel from '../components/CentralityPanel'
 import gifshot from 'gifshot'
 
 export default function Results({ results, setupState, onBack }) {
-  const [activeMetric, setActiveMetric] = useState('betweenness')
   const [showTrajectory, setShowTrajectory] = useState(false)
   const [showGraph, setShowGraph] = useState(true)
   const [exportingGif, setExportingGif] = useState(false)
@@ -22,7 +21,7 @@ export default function Results({ results, setupState, onBack }) {
       const sc = Math.min(W / imageInfo.width, H / imageInfo.height)
       const { scale_mpp = 0.05 } = setupState
       const AGENT_RADIUS_M = 0.2
-      const dotRadius = Math.max(2, AGENT_RADIUS_M / scale_mpp)
+      const dotRadius = Math.max(3.5, (AGENT_RADIUS_M / scale_mpp) * 1.75)
 
       // Load heatmap as background
       const bg = await loadImage(results.heatmap_url)
@@ -169,7 +168,7 @@ export default function Results({ results, setupState, onBack }) {
               <p key={i} className="text-xs text-amber-300">{w}</p>
             ))}
             <p className="text-xs text-amber-500 mt-1">
-              Tip: Place Entry/Exit <strong>inside</strong> a Space polygon. Use Space (not Stand) to draw the walkway connecting your terraces.
+              Tip: Mark a Space as <strong>Entry</strong>, <strong>Exit</strong> or <strong>Both</strong> from the POI dialog.
             </p>
           </div>
           <button onClick={onBack} className="ml-auto text-xs text-amber-400 underline whitespace-nowrap">Fix annotations</button>
@@ -183,7 +182,7 @@ export default function Results({ results, setupState, onBack }) {
           floorPlanUrl={imageInfo.url}
           graph={showGraph ? results.graph : null}
           centrality={results.centrality}
-          activeMetric={activeMetric}
+          activeMetric="betweenness"
           trajectories={results.trajectory_points}
           showTrajectory={showTrajectory}
           playbackSpeed={playbackSpeed}
@@ -208,8 +207,6 @@ export default function Results({ results, setupState, onBack }) {
           {/* Centrality panel */}
           <CentralityPanel
             centrality={results.centrality}
-            activeMetric={activeMetric}
-            onMetricChange={setActiveMetric}
           />
         </aside>
       </div>

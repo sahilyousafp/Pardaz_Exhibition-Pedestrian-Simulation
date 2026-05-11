@@ -40,6 +40,22 @@ const EMPTY_REMOVED = {
   scaleLine: [], spaces: [], stands: [], entries: [], exits: [], pois: [], paths: [],
 }
 
+function normalizePoiRole(role) {
+  const value = String(role || 'poi').toLowerCase()
+  return ['poi', 'entry', 'exit', 'both'].includes(value) ? value : 'poi'
+}
+
+function countPoiRole(pois, target) {
+  return pois.filter(p => {
+    const role = normalizePoiRole(p.role)
+    return target === 'entry'
+      ? role === 'entry' || role === 'both'
+      : target === 'exit'
+        ? role === 'exit' || role === 'both'
+        : role === 'poi'
+  }).length
+}
+
 export default function Setup({ onResults, initialState }) {
   const initAnnotation = initialState?.annotation ?? EMPTY_ANNOTATION
   const [imageInfo, setImageInfo]     = useState(initialState?.imageInfo ?? null)
@@ -54,11 +70,14 @@ export default function Setup({ onResults, initialState }) {
   const [uploading, setUploading]     = useState(false)
   const [running, setRunning]         = useState(false)
   const [error, setError]             = useState(null)
+  const [spacePoiModal, setSpacePoiModal] = useState(null)
 
+  const entryCount = annotation.entries.length + countPoiRole(annotation.pois, 'entry')
+  const exitCount = annotation.exits.length + countPoiRole(annotation.pois, 'exit')
   const isReady = imageInfo &&
     annotation.spaces.length >= 1 &&
-    annotation.entries.length >= 1 &&
-    annotation.exits.length >= 1 &&
+    entryCount >= 1 &&
+    exitCount >= 1 &&
     annotation.pois.length >= 1
 
   // Normal annotation update from user drawing — clears redo for any grown key
@@ -104,20 +123,7 @@ export default function Setup({ onResults, initialState }) {
   }, [])
 
   const handleSetAsPoi = useCallback((space) => {
-    const cx = space.polygon.reduce((s, p) => s + p[0], 0) / space.polygon.length
-    const cy = space.polygon.reduce((s, p) => s + p[1], 0) / space.polygon.length
-    setAnnotation(prev => {
-      const next = {
-        ...prev,
-        pois: [...prev.pois, {
-          id: `poi_${Date.now()}`,
-          label: space.label,
-          position: [cx, cy],
-          dwell_time: 15,
-        }],
-      }
-      return next
-    })
+    setSpacePoiModal(space)
   }, [])
 
   // Tool-specific undo: remove the last item added by the current tool
@@ -176,7 +182,6 @@ export default function Setup({ onResults, initialState }) {
         e.preventDefault()
         handleItemDelete(selectedItem.type, selectedItem.id)
       }
-      if (e.key === 'Escape') setSelectedItem(null)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -215,7 +220,7 @@ export default function Setup({ onResults, initialState }) {
         spaces: annotation.spaces,
         entries: annotation.entries,
         exits: annotation.exits,
-        pois: annotation.pois,
+        pois: annotation.pois.map(p => ({ ...p, role: normalizePoiRole(p.role) })),
         paths: annotation.paths ?? [],
         num_people: numPeople,
       }
@@ -322,6 +327,70 @@ export default function Setup({ onResults, initialState }) {
           running={running}
           ready={isReady}
         />
+
+        {spacePoiModal && (
+          <SpacePoiModal
+            space={spacePoiModal}
+            defaultLabel={spacePoiModal.label || ''}
+            defaultRole="poi"
+            onConfirm={(label, dwell, role) => {
+              const poiLabel = label?.trim() || `POI ${annotation.pois.length + 1}`
+              setAnnotation(prev => ({
+                ...prev,
+                spaces: prev.spaces.map(s => s.id === spacePoiModal.id ? { ...s, label: poiLabel } : s),
+                pois: [...prev.pois, {
+                  id: `poi_${Date.now()}`,
+                  label: poiLabel,
+                  position: [
+                    spacePoiModal.polygon.reduce((sum, p) => sum + p[0], 0) / spacePoiModal.polygon.length,
+                    spacePoiModal.polygon.reduce((sum, p) => sum + p[1], 0) / spacePoiModal.polygon.length,
+                  ],
+                  dwell_time: dwell,
+                  role: normalizePoiRole(role),
+                }],
+              }))
+              setSpacePoiModal(null)
+            }}
+            onCancel={() => setSpacePoiModal(null)}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SpacePoiModal({ space, defaultLabel = '', defaultRole = 'poi', onConfirm, onCancel }) {
+  const [label, setLabel] = useState(defaultLabel)
+  const [dwell, setDwell] = useState(15)
+  const [role, setRole] = useState(defaultRole)
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
+      <div className="card w-80 space-y-4">
+        <h3 className="font-semibold text-white">Convert Space</h3>
+        <div>
+          <label className="text-sm text-slate-400 mb-1 block">Name</label>
+          <input autoFocus className="input text-base" value={label} onChange={e => setLabel(e.target.value)} />
+        </div>
+        <div>
+          <label className="text-sm text-slate-400 mb-1 block">Role</label>
+          <select className="input text-base" value={role} onChange={e => setRole(e.target.value)}>
+            <option value="poi">POI</option>
+            <option value="entry">Entry</option>
+            <option value="exit">Exit</option>
+            <option value="both">Both</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-sm text-slate-400 mb-1 block">Dwell time (seconds)</label>
+          <input type="number" min={1} max={300} className="input text-base" value={dwell} onChange={e => setDwell(Number(e.target.value))} />
+        </div>
+        <div className="flex gap-2 justify-end pt-1">
+          <button onClick={onCancel} className="btn-ghost">Cancel</button>
+          <button onClick={() => onConfirm(label, dwell, role)} className="btn-primary">
+            Convert
+          </button>
+        </div>
       </div>
     </div>
   )

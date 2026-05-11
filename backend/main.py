@@ -43,6 +43,7 @@ class PoiAnnotation(BaseModel):
     label: str = ""
     position: list[float]  # [x_px, y_px]
     dwell_time: float = 10.0  # seconds
+    role: str = "poi"      # poi | entry | exit | both
 
 class SpaceAnnotation(BaseModel):
     id: str
@@ -71,6 +72,12 @@ class SimulationRequest(BaseModel):
     pois: list[PoiAnnotation]
     paths: list[PathAnnotation] = []   # optional explicit agent routes (one per group)
     num_people: int = Field(default=20, ge=1, le=500)
+
+
+def _doorway_from_point(position: list[float], length_px: float = 40.0) -> dict[str, list[float]]:
+    half = length_px / 2
+    x, y = position
+    return {"p1": [x - half, y], "p2": [x + half, y]}
 
 
 # ---------------------------------------------------------------------------
@@ -123,19 +130,28 @@ async def simulate(req: SimulationRequest):
         "num_people": req.num_people,
     }
 
-    # Pre-flight: warn if entries/exits are fully outside all space polygons
+    # Derive doorway lines from POIs that have been marked as entry / exit roles.
+    for poi in annotation["pois"]:
+        role = str(poi.get("role", "poi")).lower()
+        if role in ("entry", "both"):
+            annotation["entries"].append(_doorway_from_point(poi["position"]))
+        if role in ("exit", "both"):
+            annotation["exits"].append(_doorway_from_point(poi["position"]))
+
+    # Pre-flight: warn if buffered doorway areas are fully outside all space polygons
     from shapely.geometry import Polygon as _Poly, LineString as _LS
     from shapely.ops import unary_union as _union
     _space_union = _union([_Poly(s["polygon"]).buffer(20) for s in annotation["spaces"]])
+    _doorway_width_px = 24
     warnings = []
     for i, ep in enumerate(annotation["entries"]):
-        line = _LS([ep["p1"], ep["p2"]])
-        if not _space_union.intersects(line):
-            warnings.append(f"Entry {i+1} line is outside your space polygons — draw it across a doorway inside a space")
+        doorway = _LS([ep["p1"], ep["p2"]]).buffer(_doorway_width_px, cap_style=2)
+        if not _space_union.intersects(doorway):
+            warnings.append(f"Entry {i+1} gateway is outside your space polygons — mark the space as Entry, Exit, or Both inside a space")
     for i, ex in enumerate(annotation["exits"]):
-        line = _LS([ex["p1"], ex["p2"]])
-        if not _space_union.intersects(line):
-            warnings.append(f"Exit {i+1} line is outside your space polygons — draw it across a doorway inside a space")
+        doorway = _LS([ex["p1"], ex["p2"]]).buffer(_doorway_width_px, cap_style=2)
+        if not _space_union.intersects(doorway):
+            warnings.append(f"Exit {i+1} gateway is outside your space polygons — mark the space as Entry, Exit, or Both inside a space")
 
     # Run JuPedSim simulation (pass image dimensions for coordinate transformation)
     try:

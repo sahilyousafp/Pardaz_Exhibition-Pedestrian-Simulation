@@ -21,7 +21,7 @@ export default function HeatmapOverlay({
   const [heatImg] = useImage(heatmapUrl)
   const [frameIdx, setFrameIdx] = useState(0)
   const AGENT_RADIUS_M = 0.2
-  const dotRadius = Math.max(2, AGENT_RADIUS_M / scaleMpp)
+  const dotRadius = Math.max(3.5, (AGENT_RADIUS_M / scaleMpp) * 1.75)
 
   // Resize observer — same fix as AnnotationCanvas (RAF deferred initial compute)
   useEffect(() => {
@@ -119,7 +119,7 @@ export default function HeatmapOverlay({
                   x1={src.centroid[0] * sc} y1={src.centroid[1] * sc}
                   x2={tgt.centroid[0] * sc} y2={tgt.centroid[1] * sc}
                   stroke="rgba(255,255,255,0.25)"
-                  strokeWidth={1.5}
+                  strokeWidth={2.25}
                 />
               )
             })}
@@ -129,11 +129,10 @@ export default function HeatmapOverlay({
               const c = centrality[n.id]
               if (!c) return null
               const val = c[activeMetric] ?? 0
-              const radius = 8 + val * 20
+              const radius = 12 + val * 30
               const colors = {
                 betweenness: `rgba(108,99,255,${0.5 + val * 0.5})`,
-                eigenvector: `rgba(34,211,238,${0.5 + val * 0.5})`,
-                degree: `rgba(245,158,11,${0.5 + val * 0.5})`,
+                foot_traffic: `rgba(245,158,11,${0.5 + val * 0.5})`,
               }
               const fill = colors[activeMetric] ?? colors.betweenness
               return (
@@ -143,14 +142,14 @@ export default function HeatmapOverlay({
                     r={radius}
                     fill={fill}
                     stroke="white"
-                    strokeWidth={1}
+                    strokeWidth={1.5}
                     strokeOpacity={0.4}
                   />
                   <text
                     x={n.centroid[0] * sc}
                     y={n.centroid[1] * sc - radius - 4}
                     textAnchor="middle"
-                    fontSize={10}
+                    fontSize={12}
                     fill="white"
                     opacity={0.8}
                     fontWeight="500"
@@ -161,7 +160,7 @@ export default function HeatmapOverlay({
                     x={n.centroid[0] * sc}
                     y={n.centroid[1] * sc + 4}
                     textAnchor="middle"
-                    fontSize={9}
+                    fontSize={11}
                     fill="white"
                     opacity={0.7}
                     fontFamily="monospace"

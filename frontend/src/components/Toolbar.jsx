@@ -40,32 +40,6 @@ const TOOLS = [
     description: 'Define walkable areas (corridors, galleries, restrooms). Agents navigate freely within spaces with collision avoidance.',
   },
   {
-    id: 'entry',
-    label: 'Entry',
-    color: '#22c55e',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M10 6v8M7 9l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-    hint: 'Click two points to draw an entry doorway line. Multiple entries allowed.',
-    description: 'Mark where agents spawn into the space. Distribute agents along the entry line length.',
-  },
-  {
-    id: 'exit',
-    label: 'Exit',
-    color: '#ef4444',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M10 14V6M7 11l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-    hint: 'Click two points to draw an exit doorway line. Multiple exits allowed.',
-    description: 'Mark where agents leave the space. Required for simulation completion.',
-  },
-  {
     id: 'poi',
     label: 'POI',
     color: '#f59e0b',
@@ -77,7 +51,7 @@ const TOOLS = [
       </svg>
     ),
     hint: 'Click to place a Point of Interest.',
-    description: 'Mark exhibition stands/activity points where agents pause (e.g., 15 sec per booth). Agents auto-route to POIs. Dwell time creates heatmap intensity.',
+    description: 'Mark exhibition stands/activity points where agents pause (e.g., 15 sec per booth). You can also convert a space into a POI, Entry, Exit, or Both.',
   },
   {
     id: 'path',
@@ -91,8 +65,8 @@ const TOOLS = [
         <circle cx="17" cy="16" r="2" fill="currentColor" opacity="0.7"/>
       </svg>
     ),
-    hint: 'Click to draw the agent route. Double-click to finish. Overrides automatic routing.',
-    description: 'Define guided visitor routes (tours, one-way flows). Optional—forces agents to follow waypoint sequence instead of free navigation through spaces.',
+    hint: 'Click to place connected path points. Snaps to existing paths. Double-click to finish.',
+    description: 'Define guided visitor routes as a bidirectional path network. Paths snap to other paths so the route graph stays connected.',
   },
 ]
 
@@ -188,8 +162,6 @@ export default function Toolbar({ activeTool, onToolChange, spaceShape, onSpaceS
         <p className="label mb-1">Legend</p>
         <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-sm bg-[#6c63ff]/40 border border-[#6c63ff] flex-shrink-0" /> Spaces</div>
         <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-sm bg-[#f97316]/30 border border-[#f97316] border-dashed flex-shrink-0" /> Stands</div>
-        <div className="flex items-center gap-2"><span className="w-5 h-0.5 bg-[#22c55e] flex-shrink-0 rounded" /> Entry line</div>
-        <div className="flex items-center gap-2"><span className="w-5 h-0.5 bg-[#ef4444] flex-shrink-0 rounded" /> Exit line</div>
         <div className="flex items-center gap-2"><span className="w-5 h-0.5 bg-[#38bdf8] flex-shrink-0 rounded" style={{borderTop:'2px dashed #38bdf8',height:0}} /> Agent path</div>
         <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#f59e0b] flex-shrink-0" /> POI</div>
       </div>
@@ -234,8 +206,22 @@ export function RightPanel({
         <p className="label mb-1">Annotation</p>
         <StatusRow label="Spaces"  count={annotation.spaces.length}          required={1} />
         <StatusRow label="Stands"  count={annotation.stands?.length ?? 0}    required={0} />
-        <StatusRow label="Entries" count={annotation.entries.length}          required={1} />
-        <StatusRow label="Exits"   count={annotation.exits.length}            required={1} />
+        <StatusRow
+          label="Entries"
+          count={annotation.entries.length + (annotation.pois ?? []).filter(p => {
+            const role = String(p.role ?? 'poi').toLowerCase()
+            return role === 'entry' || role === 'both'
+          }).length}
+          required={1}
+        />
+        <StatusRow
+          label="Exits"
+          count={annotation.exits.length + (annotation.pois ?? []).filter(p => {
+            const role = String(p.role ?? 'poi').toLowerCase()
+            return role === 'exit' || role === 'both'
+          }).length}
+          required={1}
+        />
         <StatusRow label="POIs"    count={annotation.pois.length}             required={1} />
         <StatusRow label="Paths"   count={annotation.paths?.length ?? 0}       required={0} />
       </div>
@@ -266,13 +252,13 @@ export function RightPanel({
             </div>
             <div>
               <p className="font-medium text-yellow-300 mb-0.5">2️⃣ Place POIs (optional)</p>
-              <p className="text-[10px] leading-relaxed">Mark exhibition stands. Set dwell time (how long agents stay). POIs create heatmap intensity.</p>
+              <p className="text-[10px] leading-relaxed">Mark exhibition stands. Set dwell time and optionally mark a space as POI, Entry, Exit or Both from the selection dialog.</p>
             </div>
             <div>
               <p className="font-medium text-cyan-300 mb-0.5">3️⃣ Add Paths (optional)</p>
-              <p className="text-[10px] leading-relaxed">For guided visitor routes (tours). Forces agents to follow waypoints instead of free navigation.</p>
+              <p className="text-[10px] leading-relaxed">For guided visitor routes and connected wayfinding. Paths are bidirectional and snap together into a continuous network.</p>
             </div>
-            <p className="text-[9px] text-slate-500 pt-1 border-t border-slate-700">💡 Most simulations use Zones + POIs. Paths are for directed flows.</p>
+            <p className="text-[9px] text-slate-500 pt-1 border-t border-slate-700">💡 Most simulations use Zones + POIs. Paths are optional bidirectional connectors.</p>
           </div>
         </details>
       </div>
@@ -311,8 +297,6 @@ import { useState as useLocalState } from 'react'
 const SECTION_META = {
   spaces:  { label: 'Spaces',  color: '#6c63ff', canEdit: true,  canSetPoi: true  },
   stands:  { label: 'Stands',  color: '#f97316', canEdit: true,  canSetPoi: false },
-  entries: { label: 'Entries', color: '#22c55e', canEdit: false, canSetPoi: false },
-  exits:   { label: 'Exits',   color: '#ef4444', canEdit: false, canSetPoi: false },
   pois:    { label: 'POIs',    color: '#f59e0b', canEdit: true,  canSetPoi: false },
   paths:   { label: 'Paths',   color: '#38bdf8', canEdit: false, canSetPoi: false },
 }
@@ -358,12 +342,16 @@ function AnnotationList({ annotation, selectedItem, onSelect, onDelete, onEdit, 
               const id = item.id ?? `${key}_${idx}`
               const sel = selectedItem?.type === key && selectedItem?.id === id
               const editing = editingId === id
+              const role = String(item.role ?? 'poi').toLowerCase()
+              const roleLabel = role === 'entry' ? 'Entry'
+                : role === 'exit' ? 'Exit'
+                : role === 'both' ? 'Entry + Exit'
+                : 'POI'
               const label = item.label ?? item.points
                 ? (item.label || `${meta.label} ${idx + 1}`)
                 : `${meta.label} ${idx + 1}`
-              const sub = key === 'pois' ? `${item.dwell_time}s dwell`
+              const sub = key === 'pois' ? `${roleLabel} · ${item.dwell_time}s dwell`
                 : key === 'paths' ? `${item.points?.length} pts`
-                : key === 'entries' || key === 'exits' ? 'doorway line'
                 : ''
 
               return (

@@ -8,6 +8,8 @@
     background-color: #0f1117;
     color: #e2e8f0;
     font-family: 'Inter', system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.55;
     margin: 0;
     padding: 0;
   }
@@ -19,14 +21,14 @@
 
 @layer components {
   .btn-primary {
-    @apply px-4 py-2 bg-accent text-white rounded-lg font-medium text-sm
-           hover:bg-accent-soft transition-colors disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply px-4 py-2 bg-accent text-white rounded-lg font-medium text-base
+            hover:bg-accent-soft transition-colors disabled:opacity-40 disabled:cursor-not-allowed;
   }
   .btn-ghost {
-    @apply px-3 py-2 text-slate-400 rounded-lg text-sm hover:bg-panel hover:text-white transition-colors;
+    @apply px-3 py-2 text-slate-400 rounded-lg text-base hover:bg-panel hover:text-white transition-colors;
   }
   .tool-btn {
-    @apply flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg text-xs font-medium
+    @apply flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg text-sm font-medium
            transition-all cursor-pointer select-none border border-transparent;
   }
   .tool-btn.active {
@@ -39,10 +41,10 @@
     @apply bg-panel border border-border rounded-xl p-4;
   }
   .label {
-    @apply text-xs font-medium text-slate-500 uppercase tracking-wider;
+    @apply text-sm font-medium text-slate-500 uppercase tracking-wider;
   }
   .input {
-    @apply w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm
+    @apply w-full bg-surface border border-border rounded-lg px-3 py-2 text-base
            text-white placeholder-slate-600 focus:outline-none focus:border-accent transition-colors;
   }
 }

@@ -52,6 +52,19 @@ function pointNearCircle([px, py], [cx, cy, r], tolerance = 5) {
   return Math.abs(d - r) <= tolerance
 }
 
+function projectPointOnSegment(point, segment) {
+  const [px, py] = point
+  const [x1, y1, x2, y2] = segment
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const lenSq = dx * dx + dy * dy
+  if (lenSq === 0) return { point: [x1, y1], distance: pxDist(point, [x1, y1]) }
+  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq))
+  const x = x1 + t * dx
+  const y = y1 + t * dy
+  return { point: [x, y], distance: pxDist(point, [x, y]) }
+}
+
 export default function AnnotationCanvas({
   imageUrl,
   imageNativeW,
@@ -129,11 +142,62 @@ export default function AnnotationCanvas({
     setLineStart(null)
     setLineWarning(false)
     setShapeStart(null)
+    setPoiModal(null)
+    setPoiEditModal(null)
   }, [activeTool, spaceShape])
 
   const toImg   = useCallback((sx, sy) => [(sx - stagePos.x) / (scale * zoomLevel), (sy - stagePos.y) / (scale * zoomLevel)], [scale, zoomLevel, stagePos])
   const toStage = useCallback((ix, iy) => [ix * scale * zoomLevel + stagePos.x, iy * scale * zoomLevel + stagePos.y], [scale, zoomLevel, stagePos])
   const flatStage = (pts) => pts.flatMap(([ix, iy]) => toStage(ix, iy))
+  const snapTolerance = 12 / Math.max(0.0001, scale * zoomLevel)
+
+  const cancelActiveTask = useCallback(() => {
+    setCurrentPoints([])
+    setMousePos(null)
+    setShapeStart(null)
+    setStandStart(null)
+    setRulerStart(null)
+    setLineStart(null)
+    setLineWarning(false)
+    setPoiModal(null)
+    setPoiEditModal(null)
+  }, [])
+
+  const snapPathPoint = useCallback((point) => {
+    if (!point || activeTool !== 'path') return point
+    const paths = annotation.paths ?? []
+    let best = { point, distance: snapTolerance }
+
+    for (const path of paths) {
+      const pts = path.points ?? []
+      for (const pt of pts) {
+        const distance = pxDist(point, pt)
+        if (distance <= best.distance) {
+          best = { point: pt, distance }
+        }
+      }
+      for (let i = 0; i < pts.length - 1; i++) {
+        const candidate = projectPointOnSegment(point, [...pts[i], ...pts[i + 1]])
+        if (candidate.distance <= best.distance) {
+          best = { point: candidate.point, distance: candidate.distance }
+        }
+      }
+    }
+
+    return best.point
+  }, [activeTool, annotation.paths, snapTolerance])
+
+  // Escape cancels the current drawing task and clears modal state.
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      cancelActiveTask()
+      onItemSelect?.(null, null)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [cancelActiveTask, onItemSelect])
 
   // Zoom and pan handlers
   const handleWheel = (e) => {
@@ -275,7 +339,12 @@ export default function AnnotationCanvas({
       return
     }
     if (activeTool === 'path') {
-      setCurrentPoints(prev => [...prev, [ix, iy]])
+      const snapped = snapPathPoint([ix, iy])
+      setCurrentPoints(prev => {
+        const last = prev[prev.length - 1]
+        if (last && pxDist(last, snapped) < 0.01) return prev
+        return [...prev, snapped]
+      })
       return
     }
     if (activeTool === 'space') {
@@ -405,8 +474,9 @@ export default function AnnotationCanvas({
   }
 
   // ---------- preview line while drawing polygon ----------
-  const previewLine = mousePos && currentPoints.length > 0
-    ? [...flatStage(currentPoints), ...toStage(mousePos[0], mousePos[1])]
+  const previewMousePos = activeTool === 'path' ? snapPathPoint(mousePos) : mousePos
+  const previewLine = previewMousePos && currentPoints.length > 0
+    ? [...flatStage(currentPoints), ...toStage(previewMousePos[0], previewMousePos[1])]
     : null
 
   // ---------- render ----------
@@ -424,7 +494,13 @@ export default function AnnotationCanvas({
         y={stagePos.y}
         scaleX={zoomLevel}
         scaleY={zoomLevel}
-        style={{ cursor: activeTool === 'poi' && hoveredPoiId ? 'pointer' : activeTool !== 'select' ? 'crosshair' : 'default' }}
+        style={{
+          cursor:
+            activeTool === 'poi' && hoveredPoiId ? 'pointer'
+            : activeTool === 'path' ? 'crosshair'
+            : activeTool !== 'select' ? 'crosshair'
+            : 'default',
+        }}
       >
         <Layer>
           {/* Floor plan */}
@@ -491,52 +567,24 @@ export default function AnnotationCanvas({
             return <Circle x={px} y={py} radius={4} fill={COLORS.stand.stroke} opacity={0.8} />
           })()}
 
-          {/* Exit doorway lines */}
-          {annotation.exits.map((ex, i) => {
-            const id = ex.id ?? `exit_${i}`
-            const [sx1, sy1] = toStage(...ex.p1)
-            const [sx2, sy2] = toStage(...ex.p2)
-            const mx = (sx1 + sx2) / 2, my = (sy1 + sy2) / 2
-            const sel = selectedItem?.type === 'exits' && selectedItem?.id === id
-            return (
-              <Group key={id}>
-                <Line points={[sx1, sy1, sx2, sy2]} stroke={sel ? '#fff' : COLORS.exit} strokeWidth={sel ? 5 : 4} lineCap="round" />
-                <DoorTicks x1={sx1} y1={sy1} x2={sx2} y2={sy2} color={sel ? '#fff' : COLORS.exit} />
-                <Text x={mx + 6} y={my - 8} text="EXIT" fontSize={9} fill="#f87171" fontStyle="bold" />
-              </Group>
-            )
-          })}
-
-          {/* Entry doorway lines */}
-          {/* Entry doorway lines */}
-          {annotation.entries.map((ep, i) => {
-            const id = ep.id ?? `entry_${i}`
-            const [sx1, sy1] = toStage(...ep.p1)
-            const [sx2, sy2] = toStage(...ep.p2)
-            const mx = (sx1 + sx2) / 2, my = (sy1 + sy2) / 2
-            const sel = selectedItem?.type === 'entries' && selectedItem?.id === id
-            return (
-              <Group key={id}>
-                <Line points={[sx1, sy1, sx2, sy2]} stroke={sel ? '#fff' : COLORS.entry} strokeWidth={sel ? 5 : 4} lineCap="round" />
-                <DoorTicks x1={sx1} y1={sy1} x2={sx2} y2={sy2} color={sel ? '#fff' : COLORS.entry} />
-                <Text x={mx + 6} y={my - 8} text="ENTRY" fontSize={9} fill={sel ? '#fff' : '#4ade80'} fontStyle="bold" />
-              </Group>
-            )
-          })}
-
           {/* POIs */}
           {annotation.pois.map(p => {
             const [sx, sy] = toStage(...p.position)
             const sel = selectedItem?.type === 'pois' && selectedItem?.id === p.id
             const hovered = hoveredPoiId === p.id && activeTool === 'poi'
+            const role = String(p.role ?? 'poi').toLowerCase()
+            const roleLabel = role === 'entry' ? 'Entry'
+              : role === 'exit' ? 'Exit'
+              : role === 'both' ? 'Entry + Exit'
+              : 'POI'
             return (
               <Group key={p.id}>
                 <Circle x={sx} y={sy} radius={sel ? 16 : hovered ? 15 : 14} fill="transparent" />
                 <Circle x={sx} y={sy} radius={9} fill={COLORS.poi} opacity={hovered ? 1 : 0.9} />
                 <Circle x={sx} y={sy} radius={sel ? 16 : hovered ? 15 : 14} stroke={sel ? '#fff' : COLORS.poi}
                   strokeWidth={sel ? 2 : hovered ? 2 : 1.5} opacity={sel ? 0.8 : hovered ? 0.6 : 0.3} />
-                <Text x={sx + 13} y={sy - 14} text={p.label || 'POI'} fontSize={9} fill={COLORS.poi} fontStyle="bold" />
-                <Text x={sx + 13} y={sy - 3} text={`${p.dwell_time}s`} fontSize={8} fill="#fcd34d" />
+                <Text x={sx + 13} y={sy - 16} text={p.label || roleLabel} fontSize={10} fill={COLORS.poi} fontStyle="bold" />
+                <Text x={sx + 13} y={sy - 4} text={`${roleLabel} · ${p.dwell_time}s`} fontSize={9} fill="#fcd34d" />
               </Group>
             )
           })}
@@ -571,6 +619,15 @@ export default function AnnotationCanvas({
               stroke={isDrawingPath ? COLORS.path : COLORS.space.stroke}
               strokeWidth={isDrawingPath ? 2.5 : 2}
               dash={isDrawingPath ? [8, 4] : [6, 3]}
+            />
+          )}
+          {activeTool === 'path' && previewMousePos && (
+            <Circle
+              x={toStage(...previewMousePos)[0]}
+              y={toStage(...previewMousePos)[1]}
+              radius={currentPoints.length > 0 ? 4.5 : 3.5}
+              fill={COLORS.path}
+              opacity={0.7}
             />
           )}
           {previewLine && (
@@ -618,24 +675,6 @@ export default function AnnotationCanvas({
               )
             }
             return null
-          })()}
-
-          {/* ── Entry / Exit in-progress preview ── */}
-          {lineStart && mousePos && (() => {
-            const [sx1, sy1] = toStage(...lineStart)
-            const [sx2, sy2] = toStage(...mousePos)
-            const color = activeTool === 'entry' ? COLORS.entry : COLORS.exit
-            return (
-              <Group>
-                <Line points={[sx1, sy1, sx2, sy2]} stroke={color} strokeWidth={3} dash={[6, 3]} opacity={0.7} />
-                <Circle x={sx1} y={sy1} radius={5} fill={color} opacity={0.9} />
-              </Group>
-            )
-          })()}
-          {lineStart && !mousePos && (() => {
-            const [sx, sy] = toStage(...lineStart)
-            const color = activeTool === 'entry' ? COLORS.entry : COLORS.exit
-            return <Circle x={sx} y={sy} radius={5} fill={color} opacity={0.9} />
           })()}
 
           {/* ── Ruler: committed scale line ── */}
@@ -695,24 +734,13 @@ export default function AnnotationCanvas({
         </div>
       )}
 
-      {/* Entry/Exit overlap warning toast */}
-      {lineWarning && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs px-4 py-2 rounded-xl backdrop-blur-sm z-20">
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-            <path d="M8 2L1 13h14L8 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
-            <path d="M8 6v4M8 11v1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-          </svg>
-          Entry and exit placed at the same location — agents may exit immediately on spawn.
-          <button onClick={() => setLineWarning(false)} className="ml-2 opacity-60 hover:opacity-100">✕</button>
-        </div>
-      )}
-
       {/* New POI modal */}
       {poiModal && (
         <PoiModal
           poiIndex={annotation.pois.length + 1}
           defaultLabel={poiModal.defaultLabel}
-          onConfirm={(label, dwell) => {
+          defaultRole={poiModal.defaultRole ?? 'poi'}
+          onConfirm={(label, dwell, role) => {
             onAnnotationChange({
               ...annotation,
               pois: [...annotation.pois, {
@@ -720,6 +748,7 @@ export default function AnnotationCanvas({
                 label: label || `POI ${annotation.pois.length + 1}`,
                 position: [poiModal.x, poiModal.y],
                 dwell_time: dwell,
+                role,
               }],
             })
             setPoiModal(null)
@@ -732,11 +761,11 @@ export default function AnnotationCanvas({
       {poiEditModal && (
         <PoiEditModal
           poi={poiEditModal}
-          onSave={(label, dwell) => {
+          onSave={(label, dwell, role) => {
             onAnnotationChange({
               ...annotation,
               pois: annotation.pois.map(p =>
-                p.id === poiEditModal.id ? { ...p, label, dwell_time: dwell } : p
+                p.id === poiEditModal.id ? { ...p, label, dwell_time: dwell, role } : p
               ),
             })
             setPoiEditModal(null)
@@ -857,40 +886,48 @@ function HintText({ tool, spaceShape, points, rulerStart, standStart, lineStart,
     space: spaceMsg(),
     stand: standStart ? 'Click to set the opposite corner' : 'Click to set the first corner of the stand',
     scale: rulerStart ? 'Click to set the end of the 1 m reference line' : 'Click to set the start of the 1 m reference line',
-    exit:  lineStart ? 'Click to set the other end (agents exit here)' : 'Click one end of the exit doorway',
-    entry: lineStart ? 'Click to set the other end (agents spawn here)' : 'Click one end of the entry doorway',
-    poi:   hoveredPoiId ? '✏️ Click to edit POI (dwell time)' : '📍 Click to place exhibition stand/activity point',
-    path:  points === 0 ? 'Draw guided visitor routes (overrides free navigation)' : `${points} pts — double-click to finish`,
+    poi:   hoveredPoiId ? '✏️ Click to edit POI role and dwell time' : '📍 Click to place exhibition stand/activity point',
+    path:  points === 0 ? 'Draw connected bidirectional paths — snap to existing segments' : `${points} pts — double-click to finish`,
   }
   return msgs[tool] ?? 'Select a tool'
 }
 
-function PoiModal({ poiIndex, defaultLabel = '', onConfirm, onCancel }) {
+function PoiModal({ poiIndex, defaultLabel = '', defaultRole = 'poi', onConfirm, onCancel }) {
   const [label, setLabel] = useState(defaultLabel)
   const [dwell, setDwell] = useState(15)
+  const [role, setRole] = useState(defaultRole)
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
-      <div className="card w-72 space-y-4">
+      <div className="card w-80 space-y-4">
         <h3 className="font-semibold text-white">Point of Interest</h3>
         <div>
-          <label className="text-xs text-slate-400 mb-1 block">Label</label>
+          <label className="text-sm text-slate-400 mb-1 block">Label</label>
           <input
-            autoFocus className="input" value={label}
+            autoFocus className="input text-base" value={label}
             onChange={e => setLabel(e.target.value)}
             placeholder={`e.g. POI ${poiIndex}`}
-            onKeyDown={e => e.key === 'Enter' && onConfirm(label, dwell)}
+            onKeyDown={e => e.key === 'Enter' && onConfirm(label, dwell, role)}
           />
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1 block">Dwell time (seconds)</label>
+          <label className="text-sm text-slate-400 mb-1 block">Type</label>
+          <select className="input text-base" value={role} onChange={e => setRole(e.target.value)}>
+            <option value="poi">POI</option>
+            <option value="entry">Entry</option>
+            <option value="exit">Exit</option>
+            <option value="both">Both</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-sm text-slate-400 mb-1 block">Dwell time (seconds)</label>
           <input
-            type="number" min={1} max={300} className="input"
+            type="number" min={1} max={300} className="input text-base"
             value={dwell} onChange={e => setDwell(Number(e.target.value))}
           />
         </div>
         <div className="flex gap-2 justify-end pt-1">
           <button onClick={onCancel} className="btn-ghost">Cancel</button>
-          <button onClick={() => onConfirm(label, dwell)} className="btn-primary">Add POI</button>
+          <button onClick={() => onConfirm(label, dwell, role)} className="btn-primary">Add POI</button>
         </div>
       </div>
     </div>
@@ -900,9 +937,10 @@ function PoiModal({ poiIndex, defaultLabel = '', onConfirm, onCancel }) {
 function PoiEditModal({ poi, onSave, onDelete, onCancel }) {
   const [label, setLabel] = useState(poi.label)
   const [dwell, setDwell] = useState(poi.dwell_time)
+  const [role, setRole] = useState(poi.role ?? 'poi')
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
-      <div className="card w-72 space-y-4">
+      <div className="card w-80 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-white">Edit POI</h3>
           <button
@@ -913,23 +951,32 @@ function PoiEditModal({ poi, onSave, onDelete, onCancel }) {
           </button>
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1 block">Label</label>
+          <label className="text-sm text-slate-400 mb-1 block">Label</label>
           <input
-            autoFocus className="input" value={label}
+            autoFocus className="input text-base" value={label}
             onChange={e => setLabel(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && onSave(label, dwell)}
+            onKeyDown={e => e.key === 'Enter' && onSave(label, dwell, role)}
           />
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1 block">Dwell time (seconds)</label>
+          <label className="text-sm text-slate-400 mb-1 block">Type</label>
+          <select className="input text-base" value={role} onChange={e => setRole(e.target.value)}>
+            <option value="poi">POI</option>
+            <option value="entry">Entry</option>
+            <option value="exit">Exit</option>
+            <option value="both">Both</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-sm text-slate-400 mb-1 block">Dwell time (seconds)</label>
           <input
-            type="number" min={1} max={300} className="input"
+            type="number" min={1} max={300} className="input text-base"
             value={dwell} onChange={e => setDwell(Number(e.target.value))}
           />
         </div>
         <div className="flex gap-2 justify-end pt-1">
           <button onClick={onCancel} className="btn-ghost">Cancel</button>
-          <button onClick={() => onSave(label, dwell)} className="btn-primary">Save</button>
+          <button onClick={() => onSave(label, dwell, role)} className="btn-primary">Save</button>
         </div>
       </div>
     </div>

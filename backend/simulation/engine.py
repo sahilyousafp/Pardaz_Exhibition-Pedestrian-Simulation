@@ -25,6 +25,7 @@ def _dist(a, b):
 
 
 _SAFE_INSET = 0.25  # metres — how far inside the boundary agents/waypoints are placed
+_DOORWAY_HALF_WIDTH_M = 0.45  # metres — buffered doorway area around entry/exit lines
 
 
 def _safe_interior(walkable):
@@ -79,6 +80,11 @@ def _clamp_to_interior(point_m: tuple, walkable) -> tuple:
     return (near.x, near.y)
 
 
+def _doorway_polygon(p1_m: tuple, p2_m: tuple):
+    """Return a small polygon around a doorway line so entry/exit can be treated as area."""
+    return LineString([p1_m, p2_m]).buffer(_DOORWAY_HALF_WIDTH_M, cap_style=2)
+
+
 def run_simulation(annotation: dict, image_height: int = None) -> dict:
     """
     Run a JuPedSim pedestrian simulation from annotation data.
@@ -89,7 +95,7 @@ def run_simulation(annotation: dict, image_height: int = None) -> dict:
     3. PATHS (Waypoints) — Optional explicit routes that OVERRIDE free navigation
     
     WAYPOINT PRIORITY:
-    - If explicit paths exist: agents follow path waypoints in sequence (ignores free navigation)
+    - If explicit paths exist: agents follow path waypoints in sequence in either direction
     - If no paths: agents route via POI dwell sequence (if POIs exist) or directly to exit
     - POI dwell is triggered when agent reaches within ARRIVAL_RADIUS (0.8m) of POI
     - Agents switch to next POI after dwell_time elapses
@@ -142,21 +148,17 @@ def run_simulation(annotation: dict, image_height: int = None) -> dict:
     sim = jps.Simulation(model=model, geometry=walkable, dt=DT)
 
     # --- 3. Add exit stages ---
-    # Use the MIDPOINT of each exit line, clamped into the walkable area,
-    # then create a circle zone there. This is robust even when the exit line
-    # is drawn completely outside the space polygons.
-    EXIT_RADIUS_M = 1.5
+    # Buffer each exit line into a doorway polygon, clamp it into the walkable area,
+    # then use that polygon as the exit zone. This means the doorway itself is treated
+    # as an area, not just a thin line, so users do not need to draw extra geometry.
     exit_stage_ids = []
     for ex in exits_px:
-        mid_px = ((ex["p1"][0] + ex["p2"][0]) / 2, (ex["p1"][1] + ex["p2"][1]) / 2)
-        mid_m  = (mid_px[0] * mpp, mid_px[1] * mpp)
-        mid_m  = _clamp_to_interior(mid_m, walkable)
-        # Circle zone at the clamped midpoint, clipped to walkable → still convex
-        zone = SPoint(mid_m).buffer(EXIT_RADIUS_M, resolution=4)
+        p1_m = (ex["p1"][0] * mpp, ex["p1"][1] * mpp)
+        p2_m = (ex["p2"][0] * mpp, ex["p2"][1] * mpp)
+        zone = _doorway_polygon(p1_m, p2_m)
         clipped = zone.intersection(walkable.buffer(0.05))
         if not clipped.is_empty and clipped.geom_type in ("Polygon", "MultiPolygon"):
-            zone = (clipped if clipped.geom_type == "Polygon"
-                    else max(clipped.geoms, key=lambda g: g.area))
+            zone = clipped if clipped.geom_type == "Polygon" else max(clipped.geoms, key=lambda g: g.area)
         exit_zone = zone.convex_hull
         eid = sim.add_exit_stage(exit_zone)
         exit_stage_ids.append(eid)
@@ -170,7 +172,7 @@ def run_simulation(annotation: dict, image_height: int = None) -> dict:
     paths_px: list[list] = annotation.get("paths", [])
     use_manual_path = any(len(p.get("points", [])) >= 2 for p in paths_px)
 
-    # Build one JuPedSim journey per drawn path; agents are distributed round-robin.
+    # Build forward and reverse journeys per drawn path; agents are distributed round-robin.
     path_journeys: list[dict] = []   # [{journey_id, first_stage_id}]
 
     if use_manual_path:
@@ -178,14 +180,15 @@ def run_simulation(annotation: dict, image_height: int = None) -> dict:
             pts = path.get("points", [])
             if len(pts) < 2:
                 continue
-            stages = []
-            for pt in pts:
-                pos_m = _clamp_to_interior((pt[0] * mpp, pt[1] * mpp), walkable)
-                sid = sim.add_waypoint_stage(pos_m, ARRIVAL_RADIUS)
-                stages.append(sid)
-            all_sids = stages + [primary_exit_id]
-            jid = sim.add_journey(jps.JourneyDescription(all_sids))
-            path_journeys.append({"journey_id": jid, "first_stage_id": stages[0]})
+            for route_pts in (pts, list(reversed(pts))):
+                stages = []
+                for pt in route_pts:
+                    pos_m = _clamp_to_interior((pt[0] * mpp, pt[1] * mpp), walkable)
+                    sid = sim.add_waypoint_stage(pos_m, ARRIVAL_RADIUS)
+                    stages.append(sid)
+                all_sids = stages + [primary_exit_id]
+                jid = sim.add_journey(jps.JourneyDescription(all_sids))
+                path_journeys.append({"journey_id": jid, "first_stage_id": stages[0]})
 
         poi_data = []
         first_jid = path_journeys[0]["journey_id"]

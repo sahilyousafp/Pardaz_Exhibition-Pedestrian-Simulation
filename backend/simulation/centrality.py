@@ -63,8 +63,6 @@ def compute_centrality(G: nx.Graph, annotation: dict = None) -> dict[str, dict]:
     RESULT INTERPRETATION:
     - betweenness: 0-1, higher = more central in spatial topology
     - foot_traffic: 0-1, reflects POI dwell contribution (e.g., 0.4 = 40% of total dwell time)
-    - degree: Number of adjacent spaces
-    - eigenvector: Similar to betweenness, weight by neighbors' importance
     
     HIGH CENTRALITY occurs when:
     1. Space is a hub connecting many zones AND/OR
@@ -76,13 +74,6 @@ def compute_centrality(G: nx.Graph, annotation: dict = None) -> dict[str, dict]:
         return {}
 
     betweenness = nx.betweenness_centrality(G, normalized=True)
-    degree = nx.degree_centrality(G)
-
-    # Eigenvector centrality needs connected graph; fall back to degree on failure
-    try:
-        eigenvector = nx.eigenvector_centrality(G, max_iter=500, tol=1e-6)
-    except (nx.PowerIterationFailedConvergence, nx.NetworkXException):
-        eigenvector = degree.copy()
 
     # Calculate foot traffic density if annotation provided
     foot_traffic = {}
@@ -105,8 +96,6 @@ def compute_centrality(G: nx.Graph, annotation: dict = None) -> dict[str, dict]:
             "label": G.nodes[node].get("label", node),
             "centroid": G.nodes[node].get("centroid", [0, 0]),
             "betweenness": round(weighted_betweenness, 4),
-            "eigenvector": round(eigenvector.get(node, 0), 4),
-            "degree": round(degree.get(node, 0), 4),
             "foot_traffic": round(traffic, 4),
         }
 
@@ -122,8 +111,6 @@ def graph_to_serializable(G: nx.Graph, centrality: dict) -> dict:
             "label": data.get("label", nid),
             "centroid": data.get("centroid", [0, 0]),
             "betweenness": c.get("betweenness", 0),
-            "eigenvector": c.get("eigenvector", 0),
-            "degree": c.get("degree", 0),
             "foot_traffic": c.get("foot_traffic", 0),
         })
 
