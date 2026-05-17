@@ -206,6 +206,7 @@ export function RightPanel({
             <div className="relative">
               <input type="number" min={1} max={500} value={numPeople}
                 onChange={e => onNumPeopleChange(Number(e.target.value))}
+                onKeyDown={e => { if (e.key === 'Enter' && ready && !running) { e.preventDefault(); onRun() } }}
                 className="input" />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-secondary pointer-events-none">AGENTS</div>
             </div>

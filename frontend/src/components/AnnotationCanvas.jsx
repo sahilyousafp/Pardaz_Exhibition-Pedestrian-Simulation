@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Stage, Layer, Image as KImage, Line, Rect, Circle, Text, Group } from 'react-konva'
 import useImage from './useImage'
+import { Select } from './ui/Input'
 
 const COLORS = {
   space:  { stroke: '#6c63ff', fill: 'rgba(108,99,255,0.10)' },
@@ -885,6 +886,14 @@ function PoiModal({ poiIndex, defaultLabel = '', defaultRole = 'poi', onConfirm,
   const [label, setLabel] = useState(defaultLabel)
   const [dwell, setDwell] = useState(15)
   const [role, setRole] = useState(defaultRole)
+
+  const roleOptions = [
+    { value: 'poi', label: 'POI' },
+    { value: 'entry', label: 'Entry' },
+    { value: 'exit', label: 'Exit' },
+    { value: 'both', label: 'Entry/Exit' },
+  ]
+
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-10">
       <div className="card w-80 space-y-5">
@@ -898,15 +907,7 @@ function PoiModal({ poiIndex, defaultLabel = '', defaultRole = 'poi', onConfirm,
             onKeyDown={e => e.key === 'Enter' && onConfirm(label, dwell, role)}
           />
         </div>
-        <div>
-          <label className="label">Type</label>
-          <select className="input" value={role} onChange={e => setRole(e.target.value)}>
-            <option value="poi">POI</option>
-            <option value="entry">Entry</option>
-            <option value="exit">Exit</option>
-            <option value="both">Entry/Exit</option>
-          </select>
-        </div>
+        <Select label="Type" value={role} onChange={setRole} options={roleOptions} />
         <div>
           <label className="label">Dwell time (seconds)</label>
           <input
