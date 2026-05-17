@@ -1,8 +1,10 @@
+import { useState as useLocalState } from 'react'
+
 const TOOLS = [
   {
     id: 'scale',
     label: 'Scale',
-    color: '#facc15',
+    color: '#0071e3',
     icon: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path d="M3 10h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -105,68 +107,84 @@ const SPACE_SHAPES = [
 
 export default function Toolbar({ activeTool, onToolChange, spaceShape, onSpaceShapeChange, annotation }) {
   return (
-    <aside className="w-56 flex-shrink-0 flex flex-col gap-4 py-4 px-3 bg-panel border-r border-border overflow-y-auto">
-      {/* Brand */}
-      <div className="px-1 mb-1">
-        <h1 className="text-base font-semibold text-white tracking-tight">Pardaz</h1>
-        <p className="text-xs text-slate-500">Social Simulation</p>
-      </div>
-
-      {/* Tools */}
-      <div>
-        <p className="label px-1 mb-2">Draw Tools</p>
-        <div className="flex flex-col gap-1">
-          {TOOLS.map(t => (
-            <button
-              key={t.id}
-              title={t.hint}
-              onClick={() => onToolChange(t.id)}
-              className={`tool-btn flex-row justify-start gap-2 ${activeTool === t.id ? 'active' : ''}`}
-            >
-              <span style={{ color: activeTool === t.id ? t.color : undefined }}>{t.icon}</span>
-              <span>{t.label}</span>
-            </button>
-          ))}
+    <div className="absolute top-6 left-6 bottom-6 w-60 z-20 flex flex-col gap-4 pointer-events-none">
+      <aside className="flex flex-col gap-6 py-6 px-5 glass rounded-[32px] overflow-y-auto pointer-events-auto shadow-2xl border-white/40">
+        {/* Brand */}
+        <div className="px-1">
+          <h1 className="text-2xl font-bold text-primary tracking-tight">
+            PardazCore<span className="text-accent">.</span>
+          </h1>
+          <p className="text-[11px] font-semibold text-secondary uppercase tracking-[0.05em] mt-0.5">Social Engine</p>
         </div>
-      </div>
 
-      {/* Space shape sub-selector — only shown when Space is active */}
-      {activeTool === 'space' && (
-        <div className="bg-surface rounded-xl p-2 border border-border">
-          <p className="label mb-2 px-1">Space Shape</p>
-          <div className="flex gap-1">
-            {SPACE_SHAPES.map(s => (
+        {/* Tools */}
+        <div className="space-y-3">
+          <p className="label ml-1">Tools</p>
+          <div className="grid grid-cols-1 gap-2">
+            {TOOLS.map(t => (
               <button
-                key={s.id}
-                title={s.hint}
-                onClick={() => onSpaceShapeChange(s.id)}
-                className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg text-[10px] font-medium transition-all border ${
-                  spaceShape === s.id
-                    ? 'bg-accent/20 border-accent text-accent'
-                    : 'border-transparent text-slate-500 hover:text-white hover:bg-panel'
+                key={t.id}
+                title={t.hint}
+                onClick={() => onToolChange(t.id)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 ${
+                  activeTool === t.id
+                    ? 'bg-accent text-white shadow-lg shadow-accent/25 scale-[1.02]'
+                    : 'hover:bg-black/5 dark:hover:bg-white/5 text-secondary hover:text-primary dark:hover:text-white'
                 }`}
               >
-                {s.icon}
-                {s.label}
+                <span className="flex-shrink-0">{t.icon}</span>
+                <span className="font-semibold text-sm tracking-tight">{t.label}</span>
               </button>
             ))}
           </div>
-          <p className="text-[10px] text-slate-600 mt-1.5 px-1 leading-tight">
-            {SPACE_SHAPES.find(s => s.id === spaceShape)?.hint}
-          </p>
         </div>
-      )}
 
-      {/* Legend */}
-      <div className="card text-xs text-slate-400 space-y-1.5">
-        <p className="label mb-1">Legend</p>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-sm bg-[#6c63ff]/40 border border-[#6c63ff] flex-shrink-0" /> Spaces</div>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-sm bg-[#f97316]/30 border border-[#f97316] border-dashed flex-shrink-0" /> Stands</div>
-        <div className="flex items-center gap-2"><span className="w-5 h-0.5 bg-[#38bdf8] flex-shrink-0 rounded" style={{borderTop:'2px dashed #38bdf8',height:0}} /> Agent path</div>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#f59e0b] flex-shrink-0" /> POI</div>
-      </div>
+        {/* Space shape sub-selector — only shown when Space is active */}
+        {activeTool === 'space' && (
+          <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-2 animate-fadeIn">
+            <p className="label mb-2 px-1 text-[10px]">Geometry</p>
+            <div className="flex gap-1">
+              {SPACE_SHAPES.map(s => (
+                <button
+                  key={s.id}
+                  title={s.hint}
+                  onClick={() => onSpaceShapeChange(s.id)}
+                  className={`flex-1 flex flex-col items-center gap-1.5 py-2 rounded-xl text-[10px] font-bold transition-all ${
+                    spaceShape === s.id
+                      ? 'bg-white dark:bg-white/10 text-accent shadow-sm'
+                      : 'text-secondary hover:text-primary dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5'
+                  }`}
+                >
+                  {s.icon}
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-    </aside>
+        {/* Legend */}
+        <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 text-[11px] text-secondary space-y-3">
+          <p className="label text-[9px] mb-1 opacity-60">Visual Guide</p>
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full bg-[#6c63ff]/20 border border-[#6c63ff]/40 flex-shrink-0" />
+            <span className="font-medium">Navigable Zones</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 rounded-sm border border-[#f97316] border-dashed flex-shrink-0" />
+            <span className="font-medium">Booth Marks</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-4 h-0.5 bg-[#38bdf8] flex-shrink-0 rounded" style={{borderTop:'1.5px dashed #38bdf8',height:0}} />
+            <span className="font-medium">Visitor Routes</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full bg-[#f59e0b] flex-shrink-0" />
+            <span className="font-medium">Interest Points</span>
+          </div>
+        </div>
+      </aside>
+    </div>
   )
 }
 
@@ -178,105 +196,104 @@ export function RightPanel({
   onClear, onRun, running, ready,
 }) {
   return (
-    <aside className="w-56 flex-shrink-0 flex flex-col gap-4 py-4 px-3 bg-panel border-l border-border overflow-y-auto">
-      <p className="label px-1">Parameters</p>
+    <div className="absolute top-6 right-6 bottom-6 w-64 z-20 flex flex-col gap-4 pointer-events-none">
+      <aside className="flex flex-col gap-6 py-6 px-5 glass rounded-[32px] overflow-y-auto pointer-events-auto shadow-2xl border-white/40">
+        <p className="label ml-1">Configuration</p>
 
-      <div className="space-y-3">
-        <div>
-          <label className="text-xs text-slate-400 mb-1 block">People count</label>
-          <input type="number" min={1} max={500} value={numPeople}
-            onChange={e => onNumPeopleChange(Number(e.target.value))} className="input" />
+        <div className="space-y-5 px-1">
+          <div>
+            <label className="label text-[10px]">People density</label>
+            <div className="relative">
+              <input type="number" min={1} max={500} value={numPeople}
+                onChange={e => onNumPeopleChange(Number(e.target.value))}
+                className="input" />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-secondary pointer-events-none">AGENTS</div>
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="label text-[10px]">Scale (m/px)</label>
+              {scaleMppAuto && (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-accent text-white scale-90">
+                  AUTO
+                </span>
+              )}
+            </div>
+            <div className="relative">
+              <input type="number" min={0.001} max={1} step={0.0001} value={scaleMpp}
+                onChange={e => onScaleMppChange(Number(scaleMpp.toFixed(5)), false)}
+                className="input" />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-secondary pointer-events-none">M/PX</div>
+            </div>
+          </div>
         </div>
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-xs text-slate-400">Scale (m/px)</label>
-            {scaleMppAuto && (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400">
-                from ruler
+
+        {/* Annotation status */}
+        <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 text-[11px] space-y-2.5">
+          <p className="label text-[9px] mb-1 opacity-60">System Check</p>
+          <StatusRow label="Walkable Zones"  count={annotation.spaces.length}          required={1} />
+          <StatusRow label="Booth Marks"  count={annotation.stands?.length ?? 0}    required={0} />
+          <StatusRow
+            label="Entry Points"
+            count={annotation.entries.length + (annotation.pois ?? []).filter(p => {
+              const role = String(p.role ?? 'poi').toLowerCase()
+              return role === 'entry' || role === 'both'
+            }).length}
+            required={1}
+          />
+          <StatusRow
+            label="Exit Points"
+            count={annotation.exits.length + (annotation.pois ?? []).filter(p => {
+              const role = String(p.role ?? 'poi').toLowerCase()
+              return role === 'exit' || role === 'both'
+            }).length}
+            required={1}
+          />
+          <StatusRow label="Target POIs"    count={annotation.pois.length}             required={1} />
+        </div>
+
+        {/* Annotation list */}
+        <AnnotationList
+          annotation={annotation}
+          selectedItem={selectedItem}
+          onSelect={onItemSelect}
+          onDelete={onItemDelete}
+          onEdit={onItemEdit}
+          onSetAsPoi={onSetAsPoi}
+        />
+
+        <div className="mt-auto pt-4 space-y-3">
+          <button
+            onClick={onClear}
+            className="w-full text-center text-[11px] font-bold text-secondary hover:text-red-500 dark:hover:text-red-400 transition-colors py-2 uppercase tracking-wider"
+          >
+            Clear Design
+          </button>
+          <button
+            onClick={onRun}
+            disabled={!ready || running}
+            className="btn btn-primary w-full py-4 text-sm font-bold shadow-xl shadow-accent/20 disabled:shadow-none"
+          >
+            {running ? (
+              <div className="flex items-center gap-3">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <span>Processing</span>
+              </div>
+            ) : (
+              <span className="flex items-center gap-2 justify-center">
+                Simulate
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </span>
             )}
-          </div>
-          <input type="number" min={0.001} max={1} step={0.0001} value={scaleMpp}
-            onChange={e => onScaleMppChange(Number(e.target.value), false)} className="input" />
+          </button>
         </div>
-      </div>
-
-      {/* Annotation status */}
-      <div className="card text-xs space-y-1.5">
-        <p className="label mb-1">Annotation</p>
-        <StatusRow label="Spaces"  count={annotation.spaces.length}          required={1} />
-        <StatusRow label="Stands"  count={annotation.stands?.length ?? 0}    required={0} />
-        <StatusRow
-          label="Entries"
-          count={annotation.entries.length + (annotation.pois ?? []).filter(p => {
-            const role = String(p.role ?? 'poi').toLowerCase()
-            return role === 'entry' || role === 'both'
-          }).length}
-          required={1}
-        />
-        <StatusRow
-          label="Exits"
-          count={annotation.exits.length + (annotation.pois ?? []).filter(p => {
-            const role = String(p.role ?? 'poi').toLowerCase()
-            return role === 'exit' || role === 'both'
-          }).length}
-          required={1}
-        />
-        <StatusRow label="POIs"    count={annotation.pois.length}             required={1} />
-        <StatusRow label="Paths"   count={annotation.paths?.length ?? 0}       required={0} />
-      </div>
-
-      {/* Annotation list */}
-      <AnnotationList
-        annotation={annotation}
-        selectedItem={selectedItem}
-        onSelect={onItemSelect}
-        onDelete={onItemDelete}
-        onEdit={onItemEdit}
-        onSetAsPoi={onSetAsPoi}
-      />
-
-      {/* Design Guide */}
-      <div className="card text-xs space-y-2.5 bg-blue-500/5 border border-blue-500/20">
-        <details className="cursor-pointer group">
-          <summary className="label mb-1.5 cursor-pointer flex items-center gap-2 hover:text-blue-400 transition-colors">
-            <span>📋 Design Guide</span>
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="group-open:rotate-180 transition-transform">
-              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </summary>
-          <div className="space-y-2 text-slate-400 pt-1.5 border-t border-blue-500/20">
-            <div>
-              <p className="font-medium text-blue-300 mb-0.5">1️⃣ Draw Zones</p>
-              <p className="text-[10px] leading-relaxed">Mark walkable areas (corridors, galleries). Agents navigate freely within zones with collision avoidance.</p>
-            </div>
-            <div>
-              <p className="font-medium text-yellow-300 mb-0.5">2️⃣ Place POIs (optional)</p>
-              <p className="text-[10px] leading-relaxed">Mark exhibition stands. Set dwell time and optionally mark a space as POI, Entry, Exit or Both from the selection dialog.</p>
-            </div>
-            <div>
-              <p className="font-medium text-cyan-300 mb-0.5">3️⃣ Add Paths (optional)</p>
-              <p className="text-[10px] leading-relaxed">For guided visitor routes and connected wayfinding. Paths are bidirectional and snap together into a continuous network.</p>
-            </div>
-            <p className="text-[9px] text-slate-500 pt-1 border-t border-slate-700">💡 Most simulations use Zones + POIs. Paths are optional bidirectional connectors.</p>
-          </div>
-        </details>
-      </div>
-
-      <div className="mt-auto space-y-2">
-        <button onClick={onClear} className="btn-ghost w-full text-center">Clear all</button>
-        <button onClick={onRun} disabled={!ready || running} className="btn-primary w-full">
-          {running ? (
-            <span className="flex items-center justify-center gap-2">
-              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="40 20" />
-              </svg>
-              Simulating…
-            </span>
-          ) : 'Run Simulation'}
-        </button>
-      </div>
-    </aside>
+      </aside>
+    </div>
   )
 }
 
@@ -284,15 +301,13 @@ function StatusRow({ label, count, required }) {
   const ok = count >= required
   return (
     <div className="flex items-center justify-between">
-      <span className="text-slate-400">{label}</span>
-      <span className={ok ? 'text-green-400' : 'text-slate-600'}>{count} {ok ? '✓' : '—'}</span>
+      <span className="font-medium text-secondary">{label}</span>
+      <span className={`font-bold tabular-nums ${ok ? 'text-accent' : 'text-secondary/40'}`}>
+        {count}
+      </span>
     </div>
   )
 }
-
-// ─── Annotation list ────────────────────────────────────────────────────────
-
-import { useState as useLocalState } from 'react'
 
 const SECTION_META = {
   spaces:  { label: 'Spaces',  color: '#6c63ff', canEdit: true,  canSetPoi: true  },
@@ -329,92 +344,93 @@ function AnnotationList({ annotation, selectedItem, onSelect, onDelete, onEdit, 
   if (sections.length === 0) return null
 
   return (
-    <div className="space-y-2">
-      <p className="label">Annotation Items</p>
-      {sections.map(({ key, meta, arr }) => (
-        <div key={key}>
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: meta.color }} />
-            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{meta.label}</span>
-          </div>
-          <div className="space-y-1">
-            {arr.map((item, idx) => {
-              const id = item.id ?? `${key}_${idx}`
-              const sel = selectedItem?.type === key && selectedItem?.id === id
-              const editing = editingId === id
-              const role = String(item.role ?? 'poi').toLowerCase()
-              const roleLabel = role === 'entry' ? 'Entry'
-                : role === 'exit' ? 'Exit'
-                : role === 'both' ? 'Entry + Exit'
-                : 'POI'
-              const label = item.label ?? item.points
-                ? (item.label || `${meta.label} ${idx + 1}`)
-                : `${meta.label} ${idx + 1}`
-              const sub = key === 'pois' ? `${roleLabel} · ${item.dwell_time}s dwell`
-                : key === 'paths' ? `${item.points?.length} pts`
-                : ''
+    <div className="space-y-3">
+      <p className="label ml-1">Elements</p>
+      <div className="space-y-4">
+        {sections.map(({ key, meta, arr }) => (
+          <div key={key}>
+            <div className="flex items-center gap-2 mb-1.5 ml-1">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} />
+              <span className="text-[10px] font-bold text-secondary uppercase tracking-widest">{meta.label}</span>
+            </div>
+            <div className="space-y-1">
+              {arr.map((item, idx) => {
+                const id = item.id ?? `${key}_${idx}`
+                const sel = selectedItem?.type === key && selectedItem?.id === id
+                const editing = editingId === id
+                const role = String(item.role ?? 'poi').toLowerCase()
+                const roleLabel = role === 'entry' ? 'Entry'
+                  : role === 'exit' ? 'Exit'
+                  : role === 'both' ? 'Entry/Exit'
+                  : 'POI'
+                const label = item.label ?? (item.points
+                  ? (item.label || `${meta.label} ${idx + 1}`)
+                  : `${meta.label} ${idx + 1}`)
+                const sub = key === 'pois' ? `${roleLabel} · ${item.dwell_time}s`
+                  : key === 'paths' ? `${item.points?.length} pts`
+                  : ''
 
-              return (
-                <div key={id}
-                  onClick={() => onSelect(key, id)}
-                  className={`rounded-lg px-2 py-1.5 cursor-pointer transition-all text-xs ${
-                    sel ? 'bg-white/10 border border-white/20' : 'hover:bg-white/5'
-                  }`}
-                >
-                  {editing ? (
-                    <div className="space-y-1.5" onClick={e => e.stopPropagation()}>
-                      <input autoFocus className="input text-xs py-1 px-2" value={editLabel}
-                        onChange={e => setEditLabel(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && commitEdit(key, id)} />
-                      {key === 'pois' && (
-                        <input type="number" className="input text-xs py-1 px-2" value={editDwell}
-                          onChange={e => setEditDwell(Number(e.target.value))} placeholder="Dwell (s)" />
-                      )}
-                      <div className="flex gap-1">
-                        <button onClick={() => commitEdit(key, id)}
-                          className="flex-1 text-[10px] py-1 rounded bg-accent/20 text-accent hover:bg-accent/30">Save</button>
-                        <button onClick={() => setEditingId(null)}
-                          className="flex-1 text-[10px] py-1 rounded bg-surface text-slate-400 hover:text-white">Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-slate-200 truncate font-medium leading-tight">{label}</p>
-                        {sub && <p className="text-slate-600 text-[9px]">{sub}</p>}
-                      </div>
-                      <div className="flex gap-0.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                        {meta.canSetPoi && (
-                          <button onClick={() => onSetAsPoi(item)}
-                            title="Set as POI"
-                            className="px-1.5 py-0.5 rounded text-[9px] bg-[#f59e0b]/20 text-[#f59e0b] hover:bg-[#f59e0b]/30 font-medium">
-                            POI
-                          </button>
+                return (
+                  <div key={id}
+                    onClick={() => onSelect(key, id)}
+                    className={`group rounded-xl px-3 py-2 cursor-pointer transition-all duration-300 border ${
+                      sel ? 'bg-white dark:bg-white/10 shadow-sm border-black/5 dark:border-white/10 scale-[1.02]' : 'hover:bg-black/5 dark:hover:bg-white/5 border-transparent'
+                    }`}
+                  >
+                    {editing ? (
+                      <div className="space-y-2" onClick={e => e.stopPropagation()}>
+                        <input autoFocus className="input text-xs py-1.5 px-3" value={editLabel}
+                          onChange={e => setEditLabel(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && commitEdit(key, id)} />
+                        {key === 'pois' && (
+                          <input type="number" className="input text-xs py-1.5 px-3" value={editDwell}
+                            onChange={e => setEditDwell(Number(e.target.value))} placeholder="Dwell (s)" />
                         )}
-                        {meta.canEdit && (
-                          <button onClick={() => startEdit(item, key)}
-                            className="p-1 rounded text-slate-500 hover:text-white hover:bg-white/10">
-                            <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                              <path d="M8 2l2 2-6 6H2V8l6-6z" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+                        <div className="flex gap-2">
+                          <button onClick={() => commitEdit(key, id)}
+                            className="btn btn-primary flex-1 text-[10px] py-1.5">Save</button>
+                          <button onClick={() => setEditingId(null)}
+                            className="btn btn-secondary flex-1 text-[10px] py-1.5">Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-primary truncate font-semibold text-[13px]">{label}</p>
+                          {sub && <p className="text-secondary text-[10px] font-medium">{sub}</p>}
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                          {meta.canSetPoi && (
+                            <button onClick={() => onSetAsPoi(item)}
+                              title="Set as POI"
+                              className="px-2 py-0.5 rounded-full text-[9px] bg-accent/10 text-accent font-bold">
+                              POI
+                            </button>
+                          )}
+                          {meta.canEdit && (
+                            <button onClick={() => startEdit(item, key)}
+                              className="p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-black/5">
+                              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                                <path d="M10 2l4 4-8 8H2v-4l8-8z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </button>
+                          )}
+                          <button onClick={() => onDelete(key, id)}
+                            className="p-1.5 rounded-lg text-secondary hover:text-red-500 hover:bg-red-500/10">
+                            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                              <path d="M3 3h10M5 3V2a1 1 0 011-1h4a1 1 0 011 1v1M4 3l.5 11h7.5l.5-11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                             </svg>
                           </button>
-                        )}
-                        <button onClick={() => onDelete(key, id)}
-                          className="p-1 rounded text-slate-500 hover:text-red-400 hover:bg-red-500/10">
-                          <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                            <path d="M2 3h8M5 3V2h2v1M4 3l.5 7h3L8 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                          </svg>
-                        </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
-        </div>
-      ))}
-      <p className="text-[10px] text-slate-600 text-center">Click item or canvas to select · Del to delete</p>
+        ))}
+      </div>
     </div>
   )
 }

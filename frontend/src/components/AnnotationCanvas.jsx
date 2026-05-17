@@ -146,10 +146,10 @@ export default function AnnotationCanvas({
     setPoiEditModal(null)
   }, [activeTool, spaceShape])
 
-  const toImg   = useCallback((sx, sy) => [(sx - stagePos.x) / (scale * zoomLevel), (sy - stagePos.y) / (scale * zoomLevel)], [scale, zoomLevel, stagePos])
-  const toStage = useCallback((ix, iy) => [ix * scale * zoomLevel + stagePos.x, iy * scale * zoomLevel + stagePos.y], [scale, zoomLevel, stagePos])
+  const toImg   = useCallback((sx, sy) => [sx / scale, sy / scale], [scale])
+  const toStage = useCallback((ix, iy) => [ix * scale, iy * scale], [scale])
   const flatStage = (pts) => pts.flatMap(([ix, iy]) => toStage(ix, iy))
-  const snapTolerance = 12 / Math.max(0.0001, scale * zoomLevel)
+  const snapTolerance = 12 / Math.max(0.0001, scale)
 
   const cancelActiveTask = useCallback(() => {
     setCurrentPoints([])
@@ -206,13 +206,13 @@ export default function AnnotationCanvas({
     const stage = stageRef.current
     if (!stage) return
     
-    const pointer = stage.getPointerPosition()
+    const pointer = stage.getRelativePointerPosition()
     const oldZoom = zoomLevel
     const newZoom = Math.max(0.5, Math.min(5, oldZoom + (e.evt.deltaY < 0 ? 0.1 : -0.1)))
     
     // Calculate new position to keep zoom centered on cursor
-    const cursorImgX = (pointer.x - stagePos.x) / (scale * oldZoom)
-    const cursorImgY = (pointer.y - stagePos.y) / (scale * oldZoom)
+    const cursorImgX = pointer.x / scale
+    const cursorImgY = pointer.y / scale
     
     const newStageX = pointer.x - cursorImgX * scale * newZoom
     const newStageY = pointer.y - cursorImgY * scale * newZoom
@@ -289,7 +289,8 @@ export default function AnnotationCanvas({
   // ---------- mouse handlers ----------
 
   const handleMouseMove = (e) => {
-    const { x, y } = e.target.getStage().getPointerPosition()
+    const stage = e.target.getStage()
+    const { x, y } = stage.getRelativePointerPosition()
     const [ix, iy] = toImg(x, y)
     setMousePos([ix, iy])
     
@@ -312,7 +313,8 @@ export default function AnnotationCanvas({
   const handleClick = (e) => {
     if (e.evt.detail >= 2) return  // handled by dblClick
 
-    const { x, y } = e.target.getStage().getPointerPosition()
+    const stage = e.target.getStage()
+    const { x, y } = stage.getRelativePointerPosition()
     const [ix, iy] = toImg(x, y)
 
     if (activeTool === 'entry' || activeTool === 'exit') {
@@ -481,7 +483,7 @@ export default function AnnotationCanvas({
 
   // ---------- render ----------
   return (
-    <div ref={containerRef} className="relative flex-1 overflow-hidden flex items-center justify-center bg-surface">
+    <div ref={containerRef} className="relative flex-1 overflow-hidden flex items-center justify-center bg-surface dark:bg-[#0d0d0f] transition-colors duration-300">
       <Stage
         ref={stageRef}
         width={stageSize.w}
@@ -532,7 +534,7 @@ export default function AnnotationCanvas({
           {/* Stands */}
           {annotation.stands.map(st => {
             const [stx, sty] = toStage(st.x, st.y)
-            const sw = st.w * scale * zoomLevel, sh = st.h * scale * zoomLevel
+            const sw = st.w * scale, sh = st.h * scale
             const sel = selectedItem?.type === 'stands' && selectedItem?.id === st.id
             return (
               <Group key={st.id}>
@@ -554,7 +556,7 @@ export default function AnnotationCanvas({
             const [px, py] = toStage(rx, ry)
             return (
               <Rect
-                x={px} y={py} width={rw * scale * zoomLevel} height={rh * scale * zoomLevel}
+                x={px} y={py} width={rw * scale} height={rh * scale}
                 stroke={COLORS.stand.stroke} strokeWidth={1.5}
                 fill="transparent" dash={[5, 3]}
               />
@@ -575,7 +577,7 @@ export default function AnnotationCanvas({
             const role = String(p.role ?? 'poi').toLowerCase()
             const roleLabel = role === 'entry' ? 'Entry'
               : role === 'exit' ? 'Exit'
-              : role === 'both' ? 'Entry + Exit'
+              : role === 'both' ? 'Entry/Exit'
               : 'POI'
             return (
               <Group key={p.id}>
@@ -726,7 +728,7 @@ export default function AnnotationCanvas({
 
       {/* Empty state */}
       {!imageUrl && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-600 pointer-events-none">
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-600 dark:text-gray-500 pointer-events-none">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" className="mb-3 opacity-40">
             <path d="M4 4h16v16H4z" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 2" fill="none" />
           </svg>
@@ -783,78 +785,65 @@ export default function AnnotationCanvas({
 
       {/* ── Bottom-centre floating bar: hint + undo/redo + zoom ── */}
       {imageUrl && (
-        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-panel/90 border border-border rounded-2xl px-4 py-2 backdrop-blur-sm shadow-lg">
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 glass rounded-full px-6 py-2.5 shadow-2xl border-white/40 dark:border-white/10 pointer-events-auto z-30">
           {/* Undo */}
           <button
             onClick={onUndo}
             disabled={!canUndo}
             title="Undo (Ctrl+Z)"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+            className="p-2 rounded-full text-secondary hover:text-primary dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-25 disabled:cursor-not-allowed transition-all"
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-              <path d="M6 7h10a4 4 0 014 4v6m0 0l-3-3m3 3l-3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M6 7h10a4 4 0 014 4v6m0 0l-3-3m3 3l-3 3" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
 
           {/* Divider */}
-          <span className="w-px h-4 bg-border" />
+          <span className="w-px h-5 bg-black/5 dark:bg-white/10" />
 
           {/* Hint text */}
-          <span className="text-xs text-slate-400 select-none">
+          <span className="text-[13px] font-semibold text-secondary dark:text-gray-400 select-none px-2 min-w-[200px] text-center">
             <HintText tool={activeTool} spaceShape={spaceShape} points={currentPoints.length} rulerStart={rulerStart} standStart={standStart} lineStart={lineStart} shapeStart={shapeStart} hoveredPoiId={hoveredPoiId} />
           </span>
 
           {/* Divider */}
-          <span className="w-px h-4 bg-border" />
+          <span className="w-px h-5 bg-black/5 dark:bg-white/10" />
 
           {/* Zoom controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.1))}
               title="Zoom out"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              className="p-2 rounded-full text-secondary hover:text-primary dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-all"
             >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M9.5 9.5l4.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M3 6h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M8 11h6"/>
               </svg>
             </button>
-            <span className="text-xs text-slate-400 w-10 text-center">{Math.round(zoomLevel * 100)}%</span>
+            <span className="text-[11px] font-bold text-secondary dark:text-gray-400 w-10 text-center tabular-nums">{Math.round(zoomLevel * 100)}%</span>
             <button
               onClick={() => setZoomLevel(Math.min(5, zoomLevel + 0.1))}
               title="Zoom in"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              className="p-2 rounded-full text-secondary hover:text-primary dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-all"
             >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M9.5 9.5l4.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M3 6h6M6 3v6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-            </button>
-            <button
-              onClick={() => { setZoomLevel(1); setStagePos({ x: 0, y: 0 }) }}
-              title="Reset zoom"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M2 8a6 6 0 0110.83-4.1M14 8a6 6 0 01-10.83 4.1M11.5 4v3.5h-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/>
               </svg>
             </button>
           </div>
 
           {/* Divider */}
-          <span className="w-px h-4 bg-border" />
+          <span className="w-px h-5 bg-black/5 dark:bg-white/10" />
 
           {/* Redo */}
           <button
             onClick={onRedo}
             disabled={!canRedo}
             title="Redo (Ctrl+Y)"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+            className="p-2 rounded-full text-secondary hover:text-primary dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-25 disabled:cursor-not-allowed transition-all"
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-              <path d="M18 7H8a4 4 0 00-4 4v6m0 0l3-3m-3 3l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M18 7H8a4 4 0 00-4 4v6m0 0l3-3m-3 3l3 3" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
         </div>
@@ -897,37 +886,37 @@ function PoiModal({ poiIndex, defaultLabel = '', defaultRole = 'poi', onConfirm,
   const [dwell, setDwell] = useState(15)
   const [role, setRole] = useState(defaultRole)
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
-      <div className="card w-80 space-y-4">
-        <h3 className="font-semibold text-white">Point of Interest</h3>
+    <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-10">
+      <div className="card w-80 space-y-5">
+        <h3 className="text-lg font-semibold">Point of Interest</h3>
         <div>
-          <label className="text-sm text-slate-400 mb-1 block">Label</label>
+          <label className="label">Label</label>
           <input
-            autoFocus className="input text-base" value={label}
+            autoFocus className="input" value={label}
             onChange={e => setLabel(e.target.value)}
             placeholder={`e.g. POI ${poiIndex}`}
             onKeyDown={e => e.key === 'Enter' && onConfirm(label, dwell, role)}
           />
         </div>
         <div>
-          <label className="text-sm text-slate-400 mb-1 block">Type</label>
-          <select className="input text-base" value={role} onChange={e => setRole(e.target.value)}>
+          <label className="label">Type</label>
+          <select className="input" value={role} onChange={e => setRole(e.target.value)}>
             <option value="poi">POI</option>
             <option value="entry">Entry</option>
             <option value="exit">Exit</option>
-            <option value="both">Both</option>
+            <option value="both">Entry/Exit</option>
           </select>
         </div>
         <div>
-          <label className="text-sm text-slate-400 mb-1 block">Dwell time (seconds)</label>
+          <label className="label">Dwell time (seconds)</label>
           <input
-            type="number" min={1} max={300} className="input text-base"
+            type="number" min={1} max={300} className="input"
             value={dwell} onChange={e => setDwell(Number(e.target.value))}
           />
         </div>
-        <div className="flex gap-2 justify-end pt-1">
-          <button onClick={onCancel} className="btn-ghost">Cancel</button>
-          <button onClick={() => onConfirm(label, dwell, role)} className="btn-primary">Add POI</button>
+        <div className="flex gap-3 justify-end pt-2">
+          <button onClick={onCancel} className="btn btn-secondary">Cancel</button>
+          <button onClick={() => onConfirm(label, dwell, role)} className="btn btn-primary">Add POI</button>
         </div>
       </div>
     </div>
@@ -939,44 +928,44 @@ function PoiEditModal({ poi, onSave, onDelete, onCancel }) {
   const [dwell, setDwell] = useState(poi.dwell_time)
   const [role, setRole] = useState(poi.role ?? 'poi')
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
-      <div className="card w-80 space-y-4">
+    <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-10">
+      <div className="card w-80 space-y-5">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-white">Edit POI</h3>
+          <h3 className="text-lg font-semibold">Edit POI</h3>
           <button
             onClick={onDelete}
-            className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-500/10 transition-colors"
+            className="text-xs text-red-500 hover:text-red-600 px-2 py-1 rounded-full hover:bg-red-500/10 transition-colors font-semibold"
           >
             Delete
           </button>
         </div>
         <div>
-          <label className="text-sm text-slate-400 mb-1 block">Label</label>
+          <label className="label">Label</label>
           <input
-            autoFocus className="input text-base" value={label}
+            autoFocus className="input" value={label}
             onChange={e => setLabel(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && onSave(label, dwell, role)}
           />
         </div>
         <div>
-          <label className="text-sm text-slate-400 mb-1 block">Type</label>
-          <select className="input text-base" value={role} onChange={e => setRole(e.target.value)}>
+          <label className="label">Type</label>
+          <select className="input" value={role} onChange={e => setRole(e.target.value)}>
             <option value="poi">POI</option>
             <option value="entry">Entry</option>
             <option value="exit">Exit</option>
-            <option value="both">Both</option>
+            <option value="both">Entry/Exit</option>
           </select>
         </div>
         <div>
-          <label className="text-sm text-slate-400 mb-1 block">Dwell time (seconds)</label>
+          <label className="label">Dwell time (seconds)</label>
           <input
-            type="number" min={1} max={300} className="input text-base"
+            type="number" min={1} max={300} className="input"
             value={dwell} onChange={e => setDwell(Number(e.target.value))}
           />
         </div>
-        <div className="flex gap-2 justify-end pt-1">
-          <button onClick={onCancel} className="btn-ghost">Cancel</button>
-          <button onClick={() => onSave(label, dwell, role)} className="btn-primary">Save</button>
+        <div className="flex gap-3 justify-end pt-2">
+          <button onClick={onCancel} className="btn btn-secondary">Cancel</button>
+          <button onClick={() => onSave(label, dwell, role)} className="btn btn-primary">Save</button>
         </div>
       </div>
     </div>

@@ -90,7 +90,7 @@ export default function HeatmapOverlay({
   const sc = dims.scale
 
   return (
-    <div ref={containerRef} className="relative flex-1 flex items-center justify-center bg-surface overflow-hidden">
+    <div ref={containerRef} className="relative flex-1 flex items-center justify-center bg-surface dark:bg-[#0d0d0f] overflow-hidden transition-colors duration-300">
       <div className="relative" style={{ width: dims.w, height: dims.h }}>
         {/* Heatmap image (already composited with floor plan) */}
         {heatImg && (

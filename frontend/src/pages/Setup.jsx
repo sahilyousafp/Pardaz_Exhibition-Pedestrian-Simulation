@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import Toolbar, { RightPanel } from '../components/Toolbar'
 import AnnotationCanvas from '../components/AnnotationCanvas'
+import ThemeToggle from '../components/ui/ThemeToggle'
 
 function parseError(err) {
   const detail = err.response?.data?.detail
@@ -239,23 +240,41 @@ export default function Setup({ onResults, initialState }) {
   }
 
   return (
-    <div className="h-screen flex flex-col">
-      <header className="h-11 flex-shrink-0 flex items-center px-4 gap-3 border-b border-border bg-panel">
-        <span className="text-sm font-semibold text-accent">Setup</span>
-        <span className="text-slate-600 text-sm">→</span>
-        <span className="text-sm text-slate-500">Annotate your floor plan, then run the simulation</span>
+    <div className="h-screen flex flex-col bg-surface dark:bg-[#0d0d0f] relative overflow-hidden font-sans transition-colors duration-300">
+      {/* Floating Header */}
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 w-[calc(100%-240px)] max-w-4xl z-30 pointer-events-none">
+        <header className="h-14 glass rounded-full px-6 flex items-center gap-4 pointer-events-auto border-white/40 shadow-2xl">
+          <div className="flex items-center gap-3">
+            <div className="w-2.5 h-2.5 rounded-full bg-accent animate-pulse" />
+            <span className="text-sm font-bold tracking-tight text-primary">System Setup</span>
+          </div>
+          
+          <div className="h-5 w-px bg-black/5 dark:bg-white/10" />
+          
+          <nav className="flex items-center gap-1">
+            <span className="text-xs font-semibold text-secondary px-3 py-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-default">Annotate Floor Plan</span>
+            <span className="text-secondary opacity-30">/</span>
+            <span className="text-xs font-semibold text-secondary px-3 py-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-default">Model Behavior</span>
+          </nav>
 
-        <label className="ml-auto btn-ghost cursor-pointer flex items-center gap-2">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <path d="M8 2v9M4 5l4-4 4 4M2 14h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          {uploading ? 'Uploading…' : 'Upload Floor Plan'}
-          <input type="file" accept=".png,.jpg,.jpeg,.dwg,.dxf" className="hidden" onChange={handleFileDrop} />
-        </label>
-      </header>
+          <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
+            
+            <label className="flex items-center gap-2 px-4 py-2 rounded-full bg-accent text-white hover:bg-accent-dark transition-all cursor-pointer shadow-lg shadow-accent/20 active:scale-95">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+              </svg>
+              <span className="text-xs font-bold uppercase tracking-wide">
+                {uploading ? 'Processing...' : 'Upload Plan'}
+              </span>
+              <input type="file" accept=".png,.jpg,.jpeg,.dwg,.dxf" className="hidden" onChange={handleFileDrop} />
+            </label>
+          </div>
+        </header>
+      </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left — draw tools */}
+      <div className="flex flex-1 overflow-hidden relative z-10">
+        {/* Left — draw tools (Floating) */}
         <Toolbar
           activeTool={activeTool}
           onToolChange={setActiveTool}
@@ -264,24 +283,29 @@ export default function Setup({ onResults, initialState }) {
           annotation={annotation}
         />
 
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 flex flex-col overflow-hidden bg-black/[0.02]">
           {!imageInfo ? (
             <div
               onDrop={handleFileDrop}
               onDragOver={e => e.preventDefault()}
-              className="flex-1 flex flex-col items-center justify-center gap-4 border-2 border-dashed border-border m-6 rounded-2xl cursor-pointer hover:border-accent/50 transition-colors"
+              className="flex-1 flex flex-col items-center justify-center m-12 rounded-[40px] border-2 border-dashed border-black/5 dark:border-white/10 bg-white/30 dark:bg-white/5 backdrop-blur-sm transition-all hover:bg-white/50 dark:hover:bg-white/10 hover:border-accent/20 cursor-pointer group"
             >
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" className="text-slate-600">
-                <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 3v13M8 7l4-4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-              <div className="text-center">
-                <p className="text-slate-300 font-medium">Drop your floor plan here</p>
-                <p className="text-slate-500 text-sm mt-1">PNG, JPG, DWG or DXF</p>
+              <div className="flex flex-col items-center text-center max-w-md px-8">
+                <div className="w-20 h-20 rounded-3xl bg-white dark:bg-white/10 shadow-xl flex items-center justify-center mb-8 group-hover:scale-110 transition-all duration-500 border border-black/5 dark:border-white/10">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" className="text-accent">
+                    <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 3v13M8 7l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <h2 className="text-3xl font-bold text-primary dark:text-white tracking-tight mb-4">Initialize Design</h2>
+                <p className="text-[17px] text-secondary dark:text-gray-400 leading-relaxed mb-10">
+                  Upload your floor plan to begin spatial annotation and agent behavior modeling.
+                </p>
+
+                <label className="px-10 py-4 bg-primary text-white rounded-full font-bold text-sm hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-xl shadow-black/10">
+                  Select File
+                  <input type="file" accept=".png,.jpg,.jpeg,.dwg,.dxf" className="hidden" onChange={handleFileDrop} />
+                </label>
               </div>
-              <label className="btn-primary cursor-pointer">
-                Browse file
-                <input type="file" accept=".png,.jpg,.jpeg,.dwg,.dxf" className="hidden" onChange={handleFileDrop} />
-              </label>
             </div>
           ) : (
             <AnnotationCanvas
@@ -303,13 +327,17 @@ export default function Setup({ onResults, initialState }) {
           )}
 
           {error && (
-            <div className="mx-4 mb-4 px-4 py-2 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
-              {error}
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-full max-w-xl px-6 z-40">
+              <div className="px-6 py-4 glass rounded-2xl border-red-500/20 text-red-600 dark:text-red-400 text-sm font-semibold flex items-center gap-4 animate-slideUp shadow-2xl">
+                <div className="w-2 h-2 rounded-full bg-red-500" />
+                <span className="flex-1">{error}</span>
+                <button onClick={() => setError(null)} className="text-secondary hover:text-primary dark:hover:text-white font-bold text-xs uppercase tracking-widest">Dismiss</button>
+              </div>
             </div>
           )}
         </main>
 
-        {/* Right — parameters + run */}
+        {/* Right — parameters + run (Floating) */}
         <RightPanel
           numPeople={numPeople}
           onNumPeopleChange={setNumPeople}
@@ -365,29 +393,29 @@ function SpacePoiModal({ space, defaultLabel = '', defaultRole = 'poi', onConfir
   const [role, setRole] = useState(defaultRole)
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
-      <div className="card w-80 space-y-4">
-        <h3 className="font-semibold text-white">Convert Space</h3>
+    <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-20">
+      <div className="card w-80 space-y-5">
+        <h3 className="text-lg font-semibold">Convert Space</h3>
         <div>
-          <label className="text-sm text-slate-400 mb-1 block">Name</label>
-          <input autoFocus className="input text-base" value={label} onChange={e => setLabel(e.target.value)} />
+          <label className="label">Name</label>
+          <input autoFocus className="input" value={label} onChange={e => setLabel(e.target.value)} />
         </div>
         <div>
-          <label className="text-sm text-slate-400 mb-1 block">Role</label>
-          <select className="input text-base" value={role} onChange={e => setRole(e.target.value)}>
+          <label className="label">Role</label>
+          <select className="input" value={role} onChange={e => setRole(e.target.value)}>
             <option value="poi">POI</option>
             <option value="entry">Entry</option>
             <option value="exit">Exit</option>
-            <option value="both">Both</option>
+            <option value="both">Entry/Exit</option>
           </select>
         </div>
         <div>
-          <label className="text-sm text-slate-400 mb-1 block">Dwell time (seconds)</label>
-          <input type="number" min={1} max={300} className="input text-base" value={dwell} onChange={e => setDwell(Number(e.target.value))} />
+          <label className="label">Dwell time (seconds)</label>
+          <input type="number" min={1} max={300} className="input" value={dwell} onChange={e => setDwell(Number(e.target.value))} />
         </div>
-        <div className="flex gap-2 justify-end pt-1">
-          <button onClick={onCancel} className="btn-ghost">Cancel</button>
-          <button onClick={() => onConfirm(label, dwell, role)} className="btn-primary">
+        <div className="flex gap-3 justify-end pt-2">
+          <button onClick={onCancel} className="btn btn-secondary">Cancel</button>
+          <button onClick={() => onConfirm(label, dwell, role)} className="btn btn-primary">
             Convert
           </button>
         </div>
