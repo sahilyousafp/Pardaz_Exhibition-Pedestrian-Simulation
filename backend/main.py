@@ -194,3 +194,12 @@ async def simulate(req: SimulationRequest):
             "position_samples": len(sim_result["positions"]),
         },
     })
+
+
+# ---------------------------------------------------------------------------
+# Local dev entry point
+# ---------------------------------------------------------------------------
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
