@@ -3,6 +3,7 @@ import axios from 'axios'
 import Toolbar, { RightPanel } from '../components/Toolbar'
 import AnnotationCanvas from '../components/AnnotationCanvas'
 import ThemeToggle from '../components/ui/ThemeToggle'
+import { API_BASE_URL } from '../config'
 
 function parseError(err) {
   const detail = err.response?.data?.detail
@@ -197,8 +198,13 @@ export default function Setup({ onResults, initialState }) {
     try {
       const fd = new FormData()
       fd.append('file', file)
-      const { data } = await axios.post('/api/upload', fd)
-      setImageInfo({ filename: data.filename, url: data.image_url, width: data.width, height: data.height })
+      const { data } = await axios.post(`${API_BASE_URL}/api/upload`, fd)
+      setImageInfo({
+        filename: data.filename,
+        url: `${API_BASE_URL}${data.image_url}`,
+        width: data.width,
+        height: data.height,
+      })
       setAnnotation(EMPTY_ANNOTATION)
       setRemoved(EMPTY_REMOVED)
     } catch (err) {
@@ -225,8 +231,8 @@ export default function Setup({ onResults, initialState }) {
         paths: annotation.paths ?? [],
         num_people: numPeople,
       }
-      const { data } = await axios.post('/api/simulate', payload)
-      onResults(data, { imageInfo, annotation, scaleMpp, numPeople })
+      const { data } = await axios.post(`${API_BASE_URL}/api/simulate`, payload)
+      onResults({ ...data, heatmap_url: `${API_BASE_URL}${data.heatmap_url}` }, { imageInfo, annotation, scaleMpp, numPeople })
     } catch (err) {
       setError(parseError(err))
     } finally {

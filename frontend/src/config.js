@@ -1,1 +1,1 @@
-export const API_BASE_URL = import.meta.env.VITE_BACKEND_HOST || 'http://localhost:8000'
+export const API_BASE_URL = 'https://pardazexhibition-pedestrian-simulation-production.up.railway.app'

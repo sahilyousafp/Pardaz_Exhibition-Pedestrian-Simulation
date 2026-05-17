@@ -14,20 +14,6 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
-    port: 5173,
-    proxy: {
-      '/api': {
-        target: process.env.VITE_BACKEND_HOST || 'http://localhost:8000',
-        changeOrigin: true
-      },
-      '/uploads': {
-        target: process.env.VITE_BACKEND_HOST || 'http://localhost:8000',
-        changeOrigin: true
-      },
-      '/heatmaps': {
-        target: process.env.VITE_BACKEND_HOST || 'http://localhost:8000',
-        changeOrigin: true
-      }
-    },
+    port: 5173
   },
 })
