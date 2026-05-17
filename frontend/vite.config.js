@@ -7,9 +7,9 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     proxy: {
-      '/api': 'http://192.168.1.128:8000',
-      '/uploads': 'http://192.168.1.128:8000',
-      '/heatmaps': 'http://192.168.1.128:8000',
+      '/api': process.env.VITE_BACKEND_HOST || 'http://localhost:8000',
+      '/uploads': process.env.VITE_BACKEND_HOST || 'http://localhost:8000',
+      '/heatmaps': process.env.VITE_BACKEND_HOST || 'http://localhost:8000',
     },
   },
 })
